@@ -27,7 +27,7 @@
 ## 4. 게임 진행 시나리오
 1) 플레이어가 소개 텍스트 입력 → `submitPlayerText` 호출
 2) `inferPlayerAppearance`가 남은 타일 목록과 텍스트를 LLM에 전달 → profile/eliminatedIds/reasoning 수신
-3) 첫 응답 시 playerProfile 설정, 제거 리스트에 따라 타일 상태 변경 + flip 애니메이션 트리거
+3) 매 응답마다 playerProfile을 최신 추론 결과로 갱신하고, 제거 리스트에 따라 타일 상태 변경 + flip 애니메이션 트리거
 4) 남은 타일 수 기반 phase 업데이트(early/mid/late) 및 라운드 증가
 5) 타일이 1장 남으면 최종 예측 화면 표시
 

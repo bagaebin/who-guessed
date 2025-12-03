@@ -59,9 +59,7 @@ export const useGameStore = create<GameState & {
         const result = await inferPlayerAppearance(text, remaining, state.phase);
         const normalizedIds = normalizeEliminations(result.eliminatedIds, state.phase, remaining);
         set((draft) => {
-          if (!draft.playerProfile) {
-            draft.playerProfile = result.profile;
-          }
+          draft.playerProfile = result.profile;
 
           draft.tiles = draft.tiles.map((tile) =>
             normalizedIds.includes(tile.id) ? { ...tile, isEliminated: true } : tile
