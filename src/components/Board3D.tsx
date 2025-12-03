@@ -10,6 +10,7 @@ type Board3DProps = {
 
 const TILE_COLUMNS = 8;
 const TILE_SPACING = 2.2;
+const CAMERA_TILE_FRONT_GAP = TILE_SPACING * 1.6;
 const parsedRowStep = Number.parseFloat(import.meta.env.VITE_TILE_ROW_STEP ?? '');
 const STAIR_STEP = Number.isFinite(parsedRowStep) ? parsedRowStep : 0.32;
 
@@ -31,7 +32,7 @@ function TileGrid({ tiles }: { tiles: CharacterTile[] }) {
 
 export default function Board3D({ tiles }: Board3DProps) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
-  const cameraTileZ = ((rows - 1) / 2 + 1) * TILE_SPACING;
+  const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2;
   return (
     <div className="board3d">
