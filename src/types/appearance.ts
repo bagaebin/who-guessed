@@ -71,6 +71,7 @@ export type GameState = {
   isLoading: boolean;
   lastReasoning?: Record<string, string>;
   statusMessage?: string;
+  lastEliminatedIds: string[];
 };
 
 export type LlmInferenceResult = {

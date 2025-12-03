@@ -84,7 +84,7 @@ button.ghost {
   border: 1px solid #2f80ed;
 }
 
-.profile, .reasoning, .status {
+.profile, .reasoning, .status, .phase-hint, .elimination-summary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
@@ -92,12 +92,12 @@ button.ghost {
   margin-top: 0.75rem;
 }
 
-.profile ul, .reasoning ul {
+.profile ul, .reasoning ul, .elimination-summary ul {
   margin: 0.25rem 0 0;
   padding-left: 1rem;
 }
 
-.profile li, .reasoning li {
+.profile li, .reasoning li, .elimination-summary li {
   line-height: 1.4;
 }
 
