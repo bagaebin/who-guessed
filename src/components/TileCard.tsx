@@ -20,9 +20,20 @@ export default function TileCard({ tile, position }: TileCardProps) {
   });
 
   const label = useMemo(() => tile.id.replace('tile-', '#'), [tile.id]);
+  const [baseX, baseY, baseZ] = useMemo(() => {
+    if (Array.isArray(position)) {
+      return [position[0] ?? 0, position[1] ?? 0, position[2] ?? 0];
+    }
+    return [0, 0, 0];
+  }, [position]);
 
   return (
-    <a.group position={position} rotation-x={rotationX} position-y={yOffset}>
+    <a.group
+      position-x={baseX}
+      position-y={yOffset.to((y) => baseY + y)}
+      position-z={baseZ}
+      rotation-x={rotationX}
+    >
       <a.mesh castShadow receiveShadow>
         <boxGeometry args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} />
         <a.meshStandardMaterial color={color} transparent opacity={opacity} roughness={0.6} />
