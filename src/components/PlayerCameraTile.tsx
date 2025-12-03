@@ -9,6 +9,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -30,13 +31,17 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
         });
 
         video.srcObject = stream;
-        await video.play();
+        video.onloadeddata = () => {
+          if (textureRef.current) return;
+          setIsVideoReady(true);
+          const texture = new THREE.VideoTexture(video);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.wrapS = THREE.ClampToEdgeWrapping;
+          texture.wrapT = THREE.ClampToEdgeWrapping;
+          textureRef.current = texture;
+        };
 
-        const texture = new THREE.VideoTexture(video);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.wrapS = THREE.ClampToEdgeWrapping;
-        texture.wrapT = THREE.ClampToEdgeWrapping;
-        textureRef.current = texture;
+        await video.play();
       } catch (err) {
         setError('카메라 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
       }
@@ -57,7 +62,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   }, []);
 
   useFrame(() => {
-    if (textureRef.current) {
+    if (textureRef.current && isVideoReady) {
       textureRef.current.needsUpdate = true;
     }
   });
@@ -73,7 +78,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
 
       <mesh position={[0, 0.002, TILE_SIZE.height / 2]} rotation-x={-Math.PI / 2}>
         <planeGeometry args={[TILE_SIZE.width * 0.92, TILE_SIZE.height * 0.92]} />
-        {textureRef.current && !error ? (
+        {textureRef.current && !error && isVideoReady ? (
           <meshBasicMaterial map={textureRef.current} toneMapped={false} />
         ) : (
           <meshStandardMaterial color="#0c121c" roughness={0.8} metalness={0.1} />
