@@ -164,7 +164,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
       </RoundedBox>
 
       <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]} scale={[-1, 1, 1]}>
-        <planeGeometry args={[TILE_SIZE.width * 0.92, TILE_SIZE.height * 0.92]} />
+        <planeGeometry args={[TILE_SIZE.width * 0.85, TILE_SIZE.height * 0.92]} />
         {textureRef.current && !error && isVideoReady ? (
           <meshBasicMaterial
             map={textureRef.current}
