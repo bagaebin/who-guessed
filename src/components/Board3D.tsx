@@ -12,6 +12,8 @@ type Board3DProps = {
 const TILE_COLUMNS = 8;
 const TILE_SPACING = 2.2;
 const CAMERA_TILE_FRONT_GAP = TILE_SPACING * 1.6;
+const CAMERA_POSITION: [number, number, number] = [0, 8.5, 20];
+const CAMERA_TARGET: [number, number, number] = [0, 1.5, 0];
 const parsedCameraZAdjust = Number.parseFloat(import.meta.env.VITE_CAMERA_TILE_Z_ADJUST ?? '');
 const CAMERA_TILE_Y_ADJUST = Number.isFinite(parsedCameraZAdjust) ? parsedCameraZAdjust : 0;
 const parsedRowStep = Number.parseFloat(import.meta.env.VITE_TILE_ROW_STEP ?? '');
@@ -39,7 +41,7 @@ export default function Board3D({ tiles }: Board3DProps) {
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   return (
     <div className="board3d">
-      <Canvas camera={{ position: [8, 12, 14], fov: 45 }} shadows>
+      <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
         <color attach="background" args={[0.06, 0.08, 0.12]} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
@@ -55,6 +57,7 @@ export default function Board3D({ tiles }: Board3DProps) {
         <OrbitControls
           enableRotate={false}
           enablePan
+          target={CAMERA_TARGET}
           mouseButtons={{
             LEFT: THREE.MOUSE.PAN,
             MIDDLE: THREE.MOUSE.DOLLY,
