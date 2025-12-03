@@ -17,7 +17,7 @@
 1. 플레이어가 텍스트 입력 → `submitPlayerText` 호출.
 2. 남은 타일과 단계(early/mid/late)를 함께 LLM 엔드포인트에 POST.
 3. 응답(`profile`, `eliminatedIds`, `reasoning`)을 Zod로 검증 후, 제거 ID를 단계별 허용 범위에 맞춰 보정(최소/최대 제거 수, 마지막 1장 보호).
-4. 첫 응답 시 `playerProfile` 고정, 제거 ID에 따라 타일 `isEliminated` 토글 + flip 애니메이션.
+4. 응답마다 `playerProfile`을 최신 추론 결과로 갱신하고, 제거 ID에 따라 타일 `isEliminated` 토글 + flip 애니메이션.
 5. 남은 타일 수 기반으로 phase 재계산, round 증가. 1장 이하이면 종료 메시지 노출.
 6. 실패 시 mock 응답 + 상태 메시지로 사용자에게 알림.
 
