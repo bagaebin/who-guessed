@@ -1,4 +1,16 @@
 // appearance 관련 타입 정의 파일
+export type Gender = 'male' | 'female' | 'non_binary' | 'transgender';
+export type Race =
+  | 'east_asian'
+  | 'southeast_asian'
+  | 'south_asian'
+  | 'black'
+  | 'white'
+  | 'latinx'
+  | 'middle_eastern'
+  | 'indigenous'
+  | 'pacific_islander'
+  | 'mixed';
 export type AgeGroup = 'child' | 'teen' | 'young_adult' | 'adult' | 'older_adult';
 export type SkinTone = 'very_light' | 'light' | 'medium' | 'tan' | 'deep';
 export type BodyShape = 'very_slim' | 'slim' | 'average' | 'slightly_chubby' | 'chubby';
@@ -39,6 +51,8 @@ export type MakeupLevel = 'none' | 'light' | 'noticeable' | 'bold';
 export type AccessoriesPresence = 'none' | 'ear' | 'head' | 'neck';
 
 export type AppearanceCore = {
+  gender: Gender;
+  race: Race;
   ageGroup: AgeGroup;
   skinTone: SkinTone;
   bodyShape: BodyShape;

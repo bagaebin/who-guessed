@@ -120,3 +120,13 @@ button.ghost {
   border: 1px solid rgba(48, 191, 191, 0.15);
   border-radius: 14px;
 }
+
+@media (max-width: 960px) {
+  .app {
+    grid-template-columns: 1fr;
+  }
+
+  .right {
+    order: -1;
+  }
+}
