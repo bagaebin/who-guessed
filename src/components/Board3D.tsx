@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stage } from '@react-three/drei';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { CharacterTile } from '../types/appearance';
 import TileCard from './TileCard';
 
@@ -30,9 +30,14 @@ export default function Board3D({ tiles }: Board3DProps) {
         <color attach="background" args={[0.06, 0.08, 0.12]} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
-        <Stage intensity={0.9} environment="city" shadows="contact">
-          <TileGrid tiles={tiles} />
-        </Stage>
+        <TileGrid tiles={tiles} />
+        <ContactShadows
+          position={[0, -0.8, 0]}
+          opacity={0.35}
+          blur={2.5}
+          scale={25}
+          far={15}
+        />
         <OrbitControls enablePan={false} minDistance={10} maxDistance={25} />
       </Canvas>
     </div>
