@@ -81,6 +81,7 @@ export type GamePhase = 'early' | 'mid' | 'late';
 export type GameState = {
   tiles: CharacterTile[];
   playerProfile?: AppearanceCore;
+  playerText: string;
   round: number;
   phase: GamePhase;
   isLoading: boolean;

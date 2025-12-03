@@ -1,9 +1,11 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
 import TileCard from './TileCard';
 import PlayerCameraTile from './PlayerCameraTile';
+import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { useCallback, useMemo, useRef } from 'react';
 
 type Board3DProps = {
   tiles: CharacterTile[];
@@ -35,38 +37,73 @@ function TileGrid({ tiles }: { tiles: CharacterTile[] }) {
   );
 }
 
+function SceneContents({
+  tiles,
+  cameraTilePosition
+}: {
+  tiles: CharacterTile[];
+  cameraTilePosition: [number, number, number];
+}) {
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const camera = useThree((state) => state.camera);
+
+  const baseOffset = useMemo(
+    () =>
+      new THREE.Vector3(...CAMERA_POSITION).sub(
+        new THREE.Vector3(...CAMERA_TARGET)
+      ),
+    []
+  );
+
+  const focusOnCameraTile = useCallback(() => {
+    const targetVector = new THREE.Vector3(...cameraTilePosition);
+    const nextPosition = targetVector.clone().add(baseOffset);
+    camera.position.copy(nextPosition);
+    controlsRef.current?.target.copy(targetVector);
+    controlsRef.current?.update();
+  }, [baseOffset, camera, cameraTilePosition]);
+
+  return (
+    <>
+      <color attach="background" args={["#9ad6ff"]} />
+      <hemisphereLight skyColor="#a3c4f9ff" groundColor="#4f6b8f" intensity={0.85} />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
+      <PlayerCameraTile position={cameraTilePosition} focusCamera={focusOnCameraTile} />
+      <TileGrid tiles={tiles} />
+      <ContactShadows
+        position={[0, -0.8, 0]}
+        opacity={0.35}
+        blur={2.5}
+        scale={25}
+        far={15}
+      />
+      <OrbitControls
+        ref={controlsRef}
+        enableRotate={false}
+        enablePan
+        target={CAMERA_TARGET}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.PAN,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN
+        }}
+        minDistance={10}
+        maxDistance={25}
+      />
+    </>
+  );
+}
+
 export default function Board3D({ tiles }: Board3DProps) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
+  const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
   return (
     <div className="board3d">
       <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
-        <color attach="background" args={["#9ad6ff"]} />
-        <hemisphereLight skyColor="#a3c4f9ff" groundColor="#4f6b8f" intensity={0.85} />
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
-        <PlayerCameraTile position={[0, cameraTileY, cameraTileZ]} />
-        <TileGrid tiles={tiles} />
-        <ContactShadows
-          position={[0, -0.8, 0]}
-          opacity={0.35}
-          blur={2.5}
-          scale={25}
-          far={15}
-        />
-        <OrbitControls
-          enableRotate={false}
-          enablePan
-          target={CAMERA_TARGET}
-          mouseButtons={{
-            LEFT: THREE.MOUSE.PAN,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN
-          }}
-          minDistance={10}
-          maxDistance={25}
-        />
+        <SceneContents tiles={tiles} cameraTilePosition={cameraTilePosition} />
       </Canvas>
     </div>
   );
