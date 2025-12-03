@@ -13,15 +13,19 @@
     "@react-three/drei": "^9.121.3",
     "@react-three/fiber": "^8.15.16",
     "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "openai": "^6.9.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.154.0",
-    "zustand": "^4.5.4",
-    "zod": "^3.23.8"
+    "ts-node": "^10.9.2",
+    "zod": "^3.23.8",
+    "zustand": "^4.5.4"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.3.0",
+    "@types/cors": "^2.8.19",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",

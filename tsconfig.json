@@ -3,8 +3,8 @@
     "target": "ESNext",
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS", // Node.js 환경에 적합한 CommonJS로 변경
+    "moduleResolution": "Node", // Node.js 환경에 적합한 모듈 해석 방식
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
