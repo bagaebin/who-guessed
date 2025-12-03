@@ -1,6 +1,6 @@
 import { Text } from '@react-three/drei';
 import { MeshProps, useFrame } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 const TILE_SIZE = { width: 3.2, height: 4.4, depth: 0.16 };
@@ -10,6 +10,9 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoAspect, setVideoAspect] = useState(1);
+
+  const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -31,13 +34,17 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
         });
 
         video.srcObject = stream;
-        video.onloadeddata = () => {
+        video.onloadedmetadata = () => {
           if (textureRef.current) return;
+          const aspect = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 1;
+          setVideoAspect(aspect);
           setIsVideoReady(true);
           const texture = new THREE.VideoTexture(video);
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.wrapS = THREE.ClampToEdgeWrapping;
           texture.wrapT = THREE.ClampToEdgeWrapping;
+          texture.offset.set(0, 0);
+          texture.repeat.set(1, 1);
           textureRef.current = texture;
         };
 
@@ -64,6 +71,17 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   useFrame(() => {
     if (textureRef.current && isVideoReady) {
       textureRef.current.needsUpdate = true;
+      const isVideoWider = videoAspect > planeAspect;
+
+      if (isVideoWider) {
+        const repeatX = planeAspect / videoAspect;
+        textureRef.current.repeat.set(repeatX, 1);
+        textureRef.current.offset.set((1 - repeatX) / 2, 0);
+      } else {
+        const repeatY = videoAspect / planeAspect;
+        textureRef.current.repeat.set(1, repeatY);
+        textureRef.current.offset.set(0, (1 - repeatY) / 2);
+      }
     }
   });
 
