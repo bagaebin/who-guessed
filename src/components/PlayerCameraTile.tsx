@@ -92,7 +92,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
     <group position={position} rotation-x={-0.22}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} />
-        <meshStandardMaterial color="#0a1e3f" metalness={0.28} roughness={0.42} />
+        <meshStandardMaterial color="#12305d" metalness={0.24} roughness={0.38} />
       </mesh>
 
       <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]} scale={[-1, 1, 1]}>
@@ -105,9 +105,9 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
           />
         ) : (
           <meshStandardMaterial
-            color="#0f1b2d"
-            roughness={0.8}
-            metalness={0.1}
+            color="#12243f"
+            roughness={0.74}
+            metalness={0.12}
             side={THREE.DoubleSide}
           />
         )}
@@ -115,7 +115,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
 
       <mesh position={[0, TILE_SIZE.height / 2 + 0.12, 0]}>
         <boxGeometry args={[TILE_SIZE.width * 0.8, 0.08, 0.08]} />
-        <meshStandardMaterial color="#15345c" emissive="#0c1f3a" emissiveIntensity={0.65} />
+        <meshStandardMaterial color="#1b467d" emissive="#112b4f" emissiveIntensity={0.85} />
       </mesh>
 
       <Text
