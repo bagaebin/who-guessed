@@ -13,7 +13,7 @@ const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 
 export default function TileCard({ tile, position }: TileCardProps) {
   const { rotationX, color, opacity, yOffset } = useSpring({
-    rotationX: tile.isEliminated ? Math.PI / 2 + 0.2 : -0.2,
+    rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
     color: tile.isEliminated ? '#30343f' : '#6dcff6',
     opacity: tile.isEliminated ? 0.35 : 1,
     yOffset: tile.isEliminated ? -0.25 : 0

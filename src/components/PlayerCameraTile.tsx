@@ -76,12 +76,21 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
         <meshStandardMaterial color="#1a3a54" metalness={0.28} roughness={0.42} />
       </mesh>
 
-      <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]}>
+      <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]} scale={[-1, 1, 1]}>
         <planeGeometry args={[TILE_SIZE.width * 0.92, TILE_SIZE.height * 0.92]} />
         {textureRef.current && !error && isVideoReady ? (
-          <meshBasicMaterial map={textureRef.current} toneMapped={false} />
+          <meshBasicMaterial
+            map={textureRef.current}
+            toneMapped={false}
+            side={THREE.DoubleSide}
+          />
         ) : (
-          <meshStandardMaterial color="#0c121c" roughness={0.8} metalness={0.1} />
+          <meshStandardMaterial
+            color="#0c121c"
+            roughness={0.8}
+            metalness={0.1}
+            side={THREE.DoubleSide}
+          />
         )}
       </mesh>
 

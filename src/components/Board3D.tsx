@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
 import TileCard from './TileCard';
 import PlayerCameraTile from './PlayerCameraTile';
@@ -51,7 +52,17 @@ export default function Board3D({ tiles }: Board3DProps) {
           scale={25}
           far={15}
         />
-        <OrbitControls enablePan={false} minDistance={10} maxDistance={25} />
+        <OrbitControls
+          enableRotate={false}
+          enablePan
+          mouseButtons={{
+            LEFT: THREE.MOUSE.PAN,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN
+          }}
+          minDistance={10}
+          maxDistance={25}
+        />
       </Canvas>
     </div>
   );
