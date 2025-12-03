@@ -10,7 +10,7 @@ type Board3DProps = {
 
 const TILE_COLUMNS = 8;
 const TILE_SPACING = 2.2;
-const STAIR_STEP = 0.12;
+const STAIR_STEP = 0.32;
 
 function TileGrid({ tiles }: { tiles: CharacterTile[] }) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
