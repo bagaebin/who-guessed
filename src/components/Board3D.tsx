@@ -42,7 +42,7 @@ export default function Board3D({ tiles }: Board3DProps) {
   return (
     <div className="board3d">
       <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
-        <color attach="background" args={[0.06, 0.08, 0.12]} />
+        <color attach="background" args={["#9ad6ff"]} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
         <PlayerCameraTile position={[0, cameraTileY, cameraTileZ]} />
