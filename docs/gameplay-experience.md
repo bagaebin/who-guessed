@@ -4,6 +4,7 @@
 
 ## 1. 화면 & UX
 - **3D 보드**: React Three Fiber 기반 등각 뷰. 타일은 4열 이상 격자로 배치하며 뒤집기(tilt + fade) 애니메이션을 지원한다.
+- **플레이어 카메라 타일**: 화면 하단 중앙에 배치하며 보드 타일 대비 약 2배 크기. 웹캠(모바일은 전면 카메라) 실시간 영상을 출력한다.
 - **우측 패널**: 채팅 입력, 라운드·단계 표시, 남은 타일 수, LLM 추정 프로필, 마지막 제거 목록, 추론 근거 표시.
 - **최종 연출**: 타일 1장만 남으면 "예측된 닮은꼴" 카드와 이미지를 표시.
 
@@ -39,6 +40,7 @@
 - `api/appearanceClient.ts`: LLM 호출, 응답 검증, mock 분기, 정제 헬퍼 제공.
 - `state/gameStore.ts`: submit/reset 로직, phase 업데이트, 타일 상태 반영.
 - `components/Board3D.tsx`, `TileCard.tsx`: 3D 씬과 타일 메시, flip 애니메이션.
+- `components/PlayerCameraTile.tsx`: 하단 중앙 플레이어 카메라 타일, 전면 카메라/웹캠 실시간 피드 표시.
 - `components/UiPanel.tsx`: 입력 흐름, 요약/프로필/근거/제거 정보 표시.
 
 ## 7. 확장 포인트
