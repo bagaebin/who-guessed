@@ -129,6 +129,25 @@ button.ghost {
   color: rgba(10, 30, 63, 0.55);
 }
 
+.camera-bubble__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.camera-bubble .camera-bubble__actions button {
+  padding: 0.55rem 0.9rem;
+  min-width: 88px;
+  font-size: 0.95rem;
+  border-radius: 10px;
+}
+
+.camera-bubble__hint {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: rgba(10, 30, 63, 0.65);
+}
+
 .profile, .reasoning, .status, .phase-hint, .elimination-summary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);

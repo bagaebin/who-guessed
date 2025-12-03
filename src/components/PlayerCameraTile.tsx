@@ -1,17 +1,27 @@
-import { Html, Text } from '@react-three/drei';
+import { Html, RoundedBox, Text } from '@react-three/drei';
 import { MeshProps, useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { useGameStore } from '../state/gameStore';
+import { TILE_COLOR_GUIDE } from '../utils/tileStyleGuide';
 
 const TILE_SIZE = { width: 3.2, height: 4.4, depth: 0.16 };
 
-export default function PlayerCameraTile({ position }: { position: MeshProps['position'] }) {
+type PlayerCameraTileProps = {
+  position: MeshProps['position'];
+  onFocusCameraTile?: () => void;
+};
+
+export default function PlayerCameraTile({ position, onFocusCameraTile }: PlayerCameraTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoAspect, setVideoAspect] = useState(1);
-  const [cameraNote, setCameraNote] = useState('');
+  const [cameraNote, setCameraNote] = useState('안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.');
+  const [isComposing, setIsComposing] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const { submitPlayerText, isLoading } = useGameStore();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
 
@@ -87,16 +97,76 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   });
 
   const cameraLabel = error ? '카메라 접근 오류' : '실시간 내 모습';
+  const activeTileStyle = TILE_COLOR_GUIDE.active;
+
+  const focusBubbleInput = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const length = input.value.length;
+    input.setSelectionRange(length, length);
+  };
+
+  useEffect(() => {
+    const handleGlobalKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+      if (event.key.length === 1 || event.key === 'Enter' || event.key === 'Backspace' || event.key === ' ') {
+        focusBubbleInput();
+        onFocusCameraTile?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [onFocusCameraTile]);
+
+  const handleBubbleSubmit = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (isComposing) return;
+    const text = cameraNote.trim();
+    if (!text) return;
+    await submitPlayerText(text);
+  };
 
   return (
     <group position={position} rotation-x={-0.22}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} />
-        <meshStandardMaterial color="#12305d" metalness={0.24} roughness={0.38} />
-      </mesh>
+      <RoundedBox
+        args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]}
+        radius={activeTileStyle.borderRadius}
+        smoothness={6}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial
+          color={activeTileStyle.baseColor}
+          metalness={0.22}
+          roughness={0.42}
+          emissive={activeTileStyle.accentColor}
+          emissiveIntensity={0.06}
+        />
+      </RoundedBox>
 
-      <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]} scale={[-1, 1, 1]}>
-        <planeGeometry args={[TILE_SIZE.width * 0.92, TILE_SIZE.height * 0.92]} />
+      <RoundedBox
+        position={[0, 0, TILE_SIZE.depth / 2 + 0.008]}
+        args={[TILE_SIZE.width * 0.94, TILE_SIZE.height * 0.94, 0.04]}
+        radius={activeTileStyle.borderRadius * 0.9}
+        smoothness={6}
+      >
+        <meshStandardMaterial
+          color={activeTileStyle.accentColor}
+          metalness={0.3}
+          roughness={0.36}
+          emissive={activeTileStyle.accentColor}
+          emissiveIntensity={0.35}
+        />
+      </RoundedBox>
+
+      <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.022]} scale={[-1, 1, 1]}>
+        <planeGeometry args={[TILE_SIZE.width * 0.86, TILE_SIZE.height * 0.86]} />
         {textureRef.current && !error && isVideoReady ? (
           <meshBasicMaterial
             map={textureRef.current}
@@ -105,7 +175,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
           />
         ) : (
           <meshStandardMaterial
-            color="#12243f"
+            color="#0f1c30"
             roughness={0.74}
             metalness={0.12}
             side={THREE.DoubleSide}
@@ -115,7 +185,11 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
 
       <mesh position={[0, TILE_SIZE.height / 2 + 0.12, 0]}>
         <boxGeometry args={[TILE_SIZE.width * 0.8, 0.08, 0.08]} />
-        <meshStandardMaterial color="#1f1fa8ff" emissive="#151578ff" emissiveIntensity={0.85} />
+        <meshStandardMaterial
+          color={activeTileStyle.baseColor}
+          emissive={activeTileStyle.accentColor}
+          emissiveIntensity={0.9}
+        />
       </mesh>
 
       <Text
@@ -149,15 +223,31 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
         distanceFactor={3.2}
         center
       >
-        <div className="camera-bubble">
-          <div className="camera-bubble__label">말풍선 메모</div>
-          <input
-            type="text"
-            value={cameraNote}
-            onChange={(event) => setCameraNote(event.target.value)}
-            placeholder="타일 아래 말풍선에 적을 내용을 입력하세요"
-          />
-        </div>
+        <form className="camera-bubble" onSubmit={handleBubbleSubmit}>
+          <div className="camera-bubble__label">LLM에게 자기소개</div>
+          <div className="camera-bubble__actions">
+            <input
+              ref={inputRef}
+              type="text"
+              value={cameraNote}
+              onChange={(event) => setCameraNote(event.target.value)}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={() => setIsComposing(false)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  if ((event.nativeEvent as CompositionEvent).isComposing) return;
+                  event.preventDefault();
+                  handleBubbleSubmit();
+                }
+              }}
+              placeholder="타일 아래 말풍선에서 LLM에게 자기소개를 보내보세요"
+            />
+            <button type="submit" disabled={isLoading || !cameraNote.trim()}>
+              {isLoading ? '전송 중...' : '전송'}
+            </button>
+          </div>
+          <div className="camera-bubble__hint">Enter 키로도 전송할 수 있어요.</div>
+        </form>
       </Html>
     </group>
   );
