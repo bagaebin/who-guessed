@@ -161,7 +161,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'none',
       accessoriesPresence: 'head'
     },
-    image: `${baseImage}+7`,
+    image: `/char-imgs/char_07.jpg`,
     isEliminated: false
   },
   {
@@ -184,7 +184,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'noticeable',
       accessoriesPresence: 'neck'
     },
-    image: `${baseImage}+8`,
+    image: `/char-imgs/char_08.jpg`,
     isEliminated: false
   },
   {
@@ -207,7 +207,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'light',
       accessoriesPresence: 'none'
     },
-    image: `${baseImage}+9`,
+    image: `/char-imgs/char_09.jpg`,
     isEliminated: false
   },
   {
@@ -230,7 +230,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'bold',
       accessoriesPresence: 'head'
     },
-    image: `${baseImage}+10`,
+    image: `/char-imgs/char_10.jpg`,
     isEliminated: false
   },
   {
@@ -253,7 +253,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'none',
       accessoriesPresence: 'none'
     },
-    image: `${baseImage}+11`,
+    image: `/char-imgs/char_11.jpg`,
     isEliminated: false
   },
   {
@@ -276,7 +276,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'light',
       accessoriesPresence: 'ear'
     },
-    image: `${baseImage}+12`,
+    image: `/char-imgs/char_12.jpg`,
     isEliminated: false
   },
   {
@@ -299,7 +299,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'noticeable',
       accessoriesPresence: 'neck'
     },
-    image: `${baseImage}+13`,
+    image: `/char-imgs/char_13.jpg`,
     isEliminated: false
   },
   {
@@ -322,7 +322,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'none',
       accessoriesPresence: 'head'
     },
-    image: `${baseImage}+14`,
+    image: `/char-imgs/char_14.jpg`,
     isEliminated: false
   },
   {
@@ -345,7 +345,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'bold',
       accessoriesPresence: 'ear'
     },
-    image: `${baseImage}+15`,
+    image: `/char-imgs/char_15.jpg`,
     isEliminated: false
   },
   {
@@ -368,7 +368,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'none',
       accessoriesPresence: 'none'
     },
-    image: `${baseImage}+16`,
+    image: `/char-imgs/char_16.jpg`,
     isEliminated: false
   },
   {
@@ -391,7 +391,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'light',
       accessoriesPresence: 'head'
     },
-    image: `${baseImage}+17`,
+    image: `/char-imgs/char_17.jpg`,
     isEliminated: false
   },
   {
@@ -414,7 +414,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'noticeable',
       accessoriesPresence: 'neck'
     },
-    image: `${baseImage}+18`,
+    image: `/char-imgs/char_18.jpg`,
     isEliminated: false
   },
   {
@@ -437,7 +437,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'light',
       accessoriesPresence: 'ear'
     },
-    image: `${baseImage}+19`,
+    image: `/char-imgs/char_19.jpg`,
     isEliminated: false
   },
   {
@@ -460,7 +460,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'bold',
       accessoriesPresence: 'head'
     },
-    image: `${baseImage}+20`,
+    image: `/char-imgs/char_20.jpg`,
     isEliminated: false
   },
   {
@@ -483,7 +483,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'none',
       accessoriesPresence: 'none'
     },
-    image: `${baseImage}+21`,
+    image: `/char-imgs/char_21.jpg`,
     isEliminated: false
   },
   {
@@ -506,7 +506,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'noticeable',
       accessoriesPresence: 'ear'
     },
-    image: `${baseImage}+22`,
+    image: `/char-imgs/char_22.jpg`,
     isEliminated: false
   },
   {
@@ -529,7 +529,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'light',
       accessoriesPresence: 'neck'
     },
-    image: `${baseImage}+23`,
+    image: `/char-imgs/char_23.jpg`,
     isEliminated: false
   },
   {
@@ -552,7 +552,7 @@ export const initialTiles: CharacterTile[] = [
       makeupLevel: 'none',
       accessoriesPresence: 'ear'
     },
-    image: `${baseImage}+24`,
+    image: `/char-imgs/char_24.jpg`,
     isEliminated: false
   }
 ];
