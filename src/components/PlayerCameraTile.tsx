@@ -1,6 +1,6 @@
-import { Text } from '@react-three/drei';
+import { Html, Text } from '@react-three/drei';
 import { MeshProps, useFrame } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 const TILE_SIZE = { width: 3.2, height: 4.4, depth: 0.16 };
@@ -10,6 +10,10 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoAspect, setVideoAspect] = useState(1);
+  const [cameraNote, setCameraNote] = useState('');
+
+  const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -31,13 +35,17 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
         });
 
         video.srcObject = stream;
-        video.onloadeddata = () => {
+        video.onloadedmetadata = () => {
           if (textureRef.current) return;
+          const aspect = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 1;
+          setVideoAspect(aspect);
           setIsVideoReady(true);
           const texture = new THREE.VideoTexture(video);
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.wrapS = THREE.ClampToEdgeWrapping;
           texture.wrapT = THREE.ClampToEdgeWrapping;
+          texture.offset.set(0, 0);
+          texture.repeat.set(1, 1);
           textureRef.current = texture;
         };
 
@@ -64,6 +72,17 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
   useFrame(() => {
     if (textureRef.current && isVideoReady) {
       textureRef.current.needsUpdate = true;
+      const isVideoWider = videoAspect > planeAspect;
+
+      if (isVideoWider) {
+        const repeatX = planeAspect / videoAspect;
+        textureRef.current.repeat.set(repeatX, 1);
+        textureRef.current.offset.set((1 - repeatX) / 2, 0);
+      } else {
+        const repeatY = videoAspect / planeAspect;
+        textureRef.current.repeat.set(1, repeatY);
+        textureRef.current.offset.set(0, (1 - repeatY) / 2);
+      }
     }
   });
 
@@ -73,7 +92,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
     <group position={position} rotation-x={-0.22}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} />
-        <meshStandardMaterial color="#1a3a54" metalness={0.28} roughness={0.42} />
+        <meshStandardMaterial color="#12305d" metalness={0.24} roughness={0.38} />
       </mesh>
 
       <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]} scale={[-1, 1, 1]}>
@@ -86,9 +105,9 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
           />
         ) : (
           <meshStandardMaterial
-            color="#0c121c"
-            roughness={0.8}
-            metalness={0.1}
+            color="#12243f"
+            roughness={0.74}
+            metalness={0.12}
             side={THREE.DoubleSide}
           />
         )}
@@ -96,7 +115,7 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
 
       <mesh position={[0, TILE_SIZE.height / 2 + 0.12, 0]}>
         <boxGeometry args={[TILE_SIZE.width * 0.8, 0.08, 0.08]} />
-        <meshStandardMaterial color="#7ad7f0" emissive="#173a4b" emissiveIntensity={0.65} />
+        <meshStandardMaterial color="#1b467d" emissive="#112b4f" emissiveIntensity={0.85} />
       </mesh>
 
       <Text
@@ -124,6 +143,22 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
           {error}
         </Text>
       )}
+
+      <Html
+        position={[0, -TILE_SIZE.height / 2 - 0.6, TILE_SIZE.depth / 2]}
+        distanceFactor={3.2}
+        center
+      >
+        <div className="camera-bubble">
+          <div className="camera-bubble__label">말풍선 메모</div>
+          <input
+            type="text"
+            value={cameraNote}
+            onChange={(event) => setCameraNote(event.target.value)}
+            placeholder="타일 아래 말풍선에 적을 내용을 입력하세요"
+          />
+        </div>
+      </Html>
     </group>
   );
 }

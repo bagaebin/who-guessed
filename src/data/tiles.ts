@@ -307,7 +307,7 @@ export const initialTiles: CharacterTile[] = [
     core: {
       gender: 'male',
       race: 'east_asian',
-      ageGroup: 'child',
+      ageGroup: 'teen',
       skinTone: 'light',
       bodyShape: 'very_slim',
       skinCondition: 'freckles_or_spots',
