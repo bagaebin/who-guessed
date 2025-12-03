@@ -17,6 +17,10 @@ npm install
 npm run dev
 ```
 
+### React Three 버전 정합
+- `@react-three/fiber`와 `@react-three/drei`의 피어 의존성을 맞추기 위해 현재 `@react-three/fiber@^8.15.16`, `@react-three/drei@^9.121.3` 조합으로 고정했습니다.
+- 다른 버전 조합을 시도했다가 ERESOLVE가 발생하면, 두 패키지의 피어 요구사항을 확인한 뒤 **같은 메이저 라인**으로 맞춘 뒤 `npm install`을 다시 실행하세요. 필요 시 `rm -rf node_modules package-lock.json` 후 재설치를 권장합니다.
+
 테스트:
 ```bash
 npm run test
