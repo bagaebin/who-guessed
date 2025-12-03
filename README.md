@@ -28,3 +28,6 @@ npm run test
 
 환경 변수:
 - `VITE_LLM_ENDPOINT`: 실제 LLM 추론 API URL. 미설정 시 목업 응답을 사용합니다.
+
+### OpenAI API 연동 절차
+클라이언트는 `VITE_LLM_ENDPOINT`로 POST를 호출하며, OpenAI 키를 직접 노출하지 않습니다. 별도 프록시/백엔드 엔드포인트를 만드는 방법과 Express 예제는 `docs/openai-integration.md`를 참고하세요. 서버는 OpenAI SDK로 LLM 응답을 생성하고, `src/services/llmSchema.ts`를 사용해 JSON을 검증한 뒤 클라이언트에 전달합니다.
