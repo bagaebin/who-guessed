@@ -1,3 +1,4 @@
+// appearance 관련 타입 정의 파일
 export type AgeGroup = 'child' | 'teen' | 'young_adult' | 'adult' | 'older_adult';
 export type SkinTone = 'very_light' | 'light' | 'medium' | 'tan' | 'deep';
 export type BodyShape = 'very_slim' | 'slim' | 'average' | 'slightly_chubby' | 'chubby';
