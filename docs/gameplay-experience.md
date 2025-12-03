@@ -8,7 +8,7 @@
 - **최종 연출**: 타일 1장만 남으면 "예측된 닮은꼴" 카드와 이미지를 표시.
 
 ## 2. 핵심 데이터 모델 (Tier 1 강제)
-- `AppearanceCore`: ageGroup, skinTone, bodyShape, skinCondition, hairLength, hairStyle, hairColor, glasses, facialHair, faceShape, expressionBaseline, styleVibe, makeupLevel, accessoriesPresence. 모든 필드는 필수이며 `unknown` 없음.
+- `AppearanceCore`: gender, race, ageGroup, skinTone, bodyShape, skinCondition, hairLength, hairStyle, hairColor, glasses, facialHair, faceShape, expressionBaseline, styleVibe, makeupLevel, accessoriesPresence. 모든 필드는 필수이며 `unknown` 없음.
 - `CharacterTile`: { id, core: AppearanceCore, image, isEliminated }.
 - `GameState`: { tiles, playerProfile?, round, phase, isLoading, lastReasoning?, statusMessage?, lastEliminatedIds }.
 

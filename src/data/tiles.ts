@@ -6,6 +6,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-1',
     core: {
+      gender: 'female',
+      race: 'east_asian',
       ageGroup: 'young_adult',
       skinTone: 'medium',
       bodyShape: 'average',
@@ -27,6 +29,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-2',
     core: {
+      gender: 'female',
+      race: 'middle_eastern',
       ageGroup: 'adult',
       skinTone: 'tan',
       bodyShape: 'slim',
@@ -48,6 +52,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-3',
     core: {
+      gender: 'male',
+      race: 'white',
       ageGroup: 'young_adult',
       skinTone: 'light',
       bodyShape: 'very_slim',
@@ -69,6 +75,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-4',
     core: {
+      gender: 'male',
+      race: 'black',
       ageGroup: 'adult',
       skinTone: 'deep',
       bodyShape: 'slightly_chubby',
@@ -90,6 +98,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-5',
     core: {
+      gender: 'transgender',
+      race: 'white',
       ageGroup: 'teen',
       skinTone: 'very_light',
       bodyShape: 'slim',
@@ -111,6 +121,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-6',
     core: {
+      gender: 'male',
+      race: 'latinx',
       ageGroup: 'adult',
       skinTone: 'medium',
       bodyShape: 'average',
@@ -132,6 +144,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-7',
     core: {
+      gender: 'male',
+      race: 'indigenous',
       ageGroup: 'older_adult',
       skinTone: 'light',
       bodyShape: 'slightly_chubby',
@@ -153,6 +167,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-8',
     core: {
+      gender: 'non_binary',
+      race: 'mixed',
       ageGroup: 'young_adult',
       skinTone: 'tan',
       bodyShape: 'average',
@@ -174,6 +190,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-9',
     core: {
+      gender: 'male',
+      race: 'south_asian',
       ageGroup: 'adult',
       skinTone: 'medium',
       bodyShape: 'slightly_chubby',
@@ -195,6 +213,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-10',
     core: {
+      gender: 'transgender',
+      race: 'pacific_islander',
       ageGroup: 'teen',
       skinTone: 'light',
       bodyShape: 'very_slim',
@@ -216,6 +236,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-11',
     core: {
+      gender: 'male',
+      race: 'black',
       ageGroup: 'adult',
       skinTone: 'deep',
       bodyShape: 'chubby',
@@ -237,6 +259,8 @@ export const initialTiles: CharacterTile[] = [
   {
     id: 'tile-12',
     core: {
+      gender: 'female',
+      race: 'southeast_asian',
       ageGroup: 'young_adult',
       skinTone: 'tan',
       bodyShape: 'average',
@@ -253,6 +277,282 @@ export const initialTiles: CharacterTile[] = [
       accessoriesPresence: 'ear'
     },
     image: `${baseImage}+12`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-13',
+    core: {
+      gender: 'female',
+      race: 'black',
+      ageGroup: 'adult',
+      skinTone: 'tan',
+      bodyShape: 'average',
+      skinCondition: 'clear',
+      hairLength: 'long',
+      hairStyle: 'coily',
+      hairColor: 'dark_brown',
+      glasses: 'none',
+      facialHair: 'none',
+      faceShape: 'oval',
+      expressionBaseline: 'big_smile',
+      styleVibe: 'colorful',
+      makeupLevel: 'noticeable',
+      accessoriesPresence: 'neck'
+    },
+    image: `${baseImage}+13`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-14',
+    core: {
+      gender: 'male',
+      race: 'east_asian',
+      ageGroup: 'child',
+      skinTone: 'light',
+      bodyShape: 'very_slim',
+      skinCondition: 'freckles_or_spots',
+      hairLength: 'short',
+      hairStyle: 'straight',
+      hairColor: 'dark_brown',
+      glasses: 'round',
+      facialHair: 'none',
+      faceShape: 'round',
+      expressionBaseline: 'neutral',
+      styleVibe: 'casual',
+      makeupLevel: 'none',
+      accessoriesPresence: 'head'
+    },
+    image: `${baseImage}+14`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-15',
+    core: {
+      gender: 'non_binary',
+      race: 'southeast_asian',
+      ageGroup: 'adult',
+      skinTone: 'medium',
+      bodyShape: 'slightly_chubby',
+      skinCondition: 'noticeable_acne',
+      hairLength: 'medium',
+      hairStyle: 'wavy',
+      hairColor: 'dyed_color',
+      glasses: 'square',
+      facialHair: 'none',
+      faceShape: 'square',
+      expressionBaseline: 'serious',
+      styleVibe: 'punk_or_goth',
+      makeupLevel: 'bold',
+      accessoriesPresence: 'ear'
+    },
+    image: `${baseImage}+15`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-16',
+    core: {
+      gender: 'male',
+      race: 'middle_eastern',
+      ageGroup: 'older_adult',
+      skinTone: 'deep',
+      bodyShape: 'chubby',
+      skinCondition: 'sensitive_or_red',
+      hairLength: 'short',
+      hairStyle: 'buzz',
+      hairColor: 'gray',
+      glasses: 'other',
+      facialHair: 'beard',
+      faceShape: 'long',
+      expressionBaseline: 'tired',
+      styleVibe: 'formal',
+      makeupLevel: 'none',
+      accessoriesPresence: 'none'
+    },
+    image: `${baseImage}+16`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-17',
+    core: {
+      gender: 'female',
+      race: 'white',
+      ageGroup: 'young_adult',
+      skinTone: 'very_light',
+      bodyShape: 'slim',
+      skinCondition: 'some_acne',
+      hairLength: 'long',
+      hairStyle: 'curly',
+      hairColor: 'blonde',
+      glasses: 'none',
+      facialHair: 'none',
+      faceShape: 'oval',
+      expressionBaseline: 'subtle_smile',
+      styleVibe: 'geeky',
+      makeupLevel: 'light',
+      accessoriesPresence: 'head'
+    },
+    image: `${baseImage}+17`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-18',
+    core: {
+      gender: 'male',
+      race: 'latinx',
+      ageGroup: 'adult',
+      skinTone: 'tan',
+      bodyShape: 'average',
+      skinCondition: 'clear',
+      hairLength: 'medium',
+      hairStyle: 'wavy',
+      hairColor: 'light_brown',
+      glasses: 'round',
+      facialHair: 'mustache',
+      faceShape: 'oval',
+      expressionBaseline: 'confident',
+      styleVibe: 'street',
+      makeupLevel: 'noticeable',
+      accessoriesPresence: 'neck'
+    },
+    image: `${baseImage}+18`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-19',
+    core: {
+      gender: 'female',
+      race: 'south_asian',
+      ageGroup: 'older_adult',
+      skinTone: 'medium',
+      bodyShape: 'slightly_chubby',
+      skinCondition: 'freckles_or_spots',
+      hairLength: 'short',
+      hairStyle: 'straight',
+      hairColor: 'black',
+      glasses: 'square',
+      facialHair: 'none',
+      faceShape: 'long',
+      expressionBaseline: 'serious',
+      styleVibe: 'formal',
+      makeupLevel: 'light',
+      accessoriesPresence: 'ear'
+    },
+    image: `${baseImage}+19`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-20',
+    core: {
+      gender: 'non_binary',
+      race: 'pacific_islander',
+      ageGroup: 'teen',
+      skinTone: 'deep',
+      bodyShape: 'very_slim',
+      skinCondition: 'noticeable_acne',
+      hairLength: 'long',
+      hairStyle: 'straight',
+      hairColor: 'dyed_color',
+      glasses: 'none',
+      facialHair: 'none',
+      faceShape: 'round',
+      expressionBaseline: 'shy',
+      styleVibe: 'artsy',
+      makeupLevel: 'bold',
+      accessoriesPresence: 'head'
+    },
+    image: `${baseImage}+20`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-21',
+    core: {
+      gender: 'male',
+      race: 'indigenous',
+      ageGroup: 'adult',
+      skinTone: 'tan',
+      bodyShape: 'slim',
+      skinCondition: 'clear',
+      hairLength: 'bald_or_shaved',
+      hairStyle: 'buzz',
+      hairColor: 'black',
+      glasses: 'none',
+      facialHair: 'stubble',
+      faceShape: 'square',
+      expressionBaseline: 'neutral',
+      styleVibe: 'sporty',
+      makeupLevel: 'none',
+      accessoriesPresence: 'none'
+    },
+    image: `${baseImage}+21`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-22',
+    core: {
+      gender: 'female',
+      race: 'middle_eastern',
+      ageGroup: 'young_adult',
+      skinTone: 'light',
+      bodyShape: 'very_slim',
+      skinCondition: 'sensitive_or_red',
+      hairLength: 'medium',
+      hairStyle: 'wavy',
+      hairColor: 'red',
+      glasses: 'other',
+      facialHair: 'none',
+      faceShape: 'oval',
+      expressionBaseline: 'confident',
+      styleVibe: 'minimal',
+      makeupLevel: 'noticeable',
+      accessoriesPresence: 'ear'
+    },
+    image: `${baseImage}+22`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-23',
+    core: {
+      gender: 'transgender',
+      race: 'mixed',
+      ageGroup: 'adult',
+      skinTone: 'medium',
+      bodyShape: 'average',
+      skinCondition: 'some_acne',
+      hairLength: 'short',
+      hairStyle: 'curly',
+      hairColor: 'light_brown',
+      glasses: 'round',
+      facialHair: 'none',
+      faceShape: 'round',
+      expressionBaseline: 'subtle_smile',
+      styleVibe: 'casual',
+      makeupLevel: 'light',
+      accessoriesPresence: 'neck'
+    },
+    image: `${baseImage}+23`,
+    isEliminated: false
+  },
+  {
+    id: 'tile-24',
+    core: {
+      gender: 'male',
+      race: 'east_asian',
+      ageGroup: 'adult',
+      skinTone: 'light',
+      bodyShape: 'chubby',
+      skinCondition: 'clear',
+      hairLength: 'long',
+      hairStyle: 'wavy',
+      hairColor: 'black',
+      glasses: 'square',
+      facialHair: 'beard',
+      faceShape: 'long',
+      expressionBaseline: 'big_smile',
+      styleVibe: 'geeky',
+      makeupLevel: 'none',
+      accessoriesPresence: 'ear'
+    },
+    image: `${baseImage}+24`,
     isEliminated: false
   }
 ];

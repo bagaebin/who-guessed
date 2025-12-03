@@ -3,6 +3,19 @@ import { eliminationRangeForPhase } from '../utils/phase';
 import { CharacterTile, GamePhase, LlmInferenceResult } from '../types/appearance';
 
 const appearanceCoreSchema = z.object({
+  gender: z.enum(['male', 'female', 'non_binary', 'transgender']),
+  race: z.enum([
+    'east_asian',
+    'southeast_asian',
+    'south_asian',
+    'black',
+    'white',
+    'latinx',
+    'middle_eastern',
+    'indigenous',
+    'pacific_islander',
+    'mixed'
+  ]),
   ageGroup: z.enum(['child', 'teen', 'young_adult', 'adult', 'older_adult']),
   skinTone: z.enum(['very_light', 'light', 'medium', 'tan', 'deep']),
   bodyShape: z.enum(['very_slim', 'slim', 'average', 'slightly_chubby', 'chubby']),
