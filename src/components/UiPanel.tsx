@@ -1,6 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useGameStore } from '../state/gameStore';
-import { AppearanceCore, CharacterTile } from '../types/appearance';
+import { eliminationRangeForPhase } from '../utils/phase';
+import { AppearanceCore, CharacterTile, GamePhase } from '../types/appearance';
 
 function ProfileList({ profile }: { profile: AppearanceCore }) {
   const entries = useMemo(() => Object.entries(profile), [profile]);
@@ -41,9 +42,48 @@ function RemainingList({ tiles }: { tiles: CharacterTile[] }) {
   );
 }
 
+function PhaseHint({ phase }: { phase: GamePhase }) {
+  const range = eliminationRangeForPhase(phase);
+  return (
+    <div className="phase-hint">
+      <strong>Phase 규칙</strong>
+      <p>
+        {phase} 단계에서는 {range.min}–{range.max}장의 타일이 뒤집힙니다.
+      </p>
+    </div>
+  );
+}
+
+function EliminationSummary({ ids, tiles }: { ids: string[]; tiles: CharacterTile[] }) {
+  if (!ids.length) return null;
+  const remainingLabel = new Map(tiles.map((tile) => [tile.id, tile.isEliminated ? '제거됨' : '생존']));
+  return (
+    <div className="elimination-summary">
+      <h4>이번 턴에 뒤집힌 타일</h4>
+      <ul>
+        {ids.map((id) => (
+          <li key={id}>
+            <strong>{id}</strong> • {remainingLabel.get(id)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function UiPanel() {
-  const { submitPlayerText, isLoading, round, phase, tiles, playerProfile, lastReasoning, statusMessage, reset } =
-    useGameStore();
+  const {
+    submitPlayerText,
+    isLoading,
+    round,
+    phase,
+    tiles,
+    playerProfile,
+    lastReasoning,
+    statusMessage,
+    reset,
+    lastEliminatedIds
+  } = useGameStore();
   const [text, setText] = useState('안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.');
 
   const handleSubmit = async (event: FormEvent) => {
@@ -77,6 +117,9 @@ export default function UiPanel() {
       </form>
 
       <RemainingList tiles={tiles} />
+      <PhaseHint phase={phase} />
+
+      <EliminationSummary ids={lastEliminatedIds} tiles={tiles} />
 
       {playerProfile && <ProfileList profile={playerProfile} />}
       <ReasoningView reasoning={lastReasoning} />

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { inferPlayerAppearance } from '../api/appearanceClient';
 import { initialTiles } from '../data/tiles';
+import { normalizeEliminations } from '../utils/elimination';
 import { getPhaseFromRemaining } from '../utils/phase';
 import { CharacterTile, GameState } from '../types/appearance';
 
@@ -23,6 +24,7 @@ export const useGameStore = create<GameState & {
     isLoading: false,
     lastReasoning: undefined,
     statusMessage: undefined,
+    lastEliminatedIds: [],
 
     reset: () => {
       set({
@@ -32,7 +34,8 @@ export const useGameStore = create<GameState & {
         phase: 'early',
         isLoading: false,
         lastReasoning: undefined,
-        statusMessage: undefined
+        statusMessage: undefined,
+        lastEliminatedIds: []
       });
     },
 
@@ -44,15 +47,17 @@ export const useGameStore = create<GameState & {
       set({ isLoading: true, statusMessage: undefined });
       try {
         const result = await inferPlayerAppearance(text, remaining, state.phase);
+        const normalizedIds = normalizeEliminations(result.eliminatedIds, state.phase, remaining);
         set((draft) => {
           if (!draft.playerProfile) {
             draft.playerProfile = result.profile;
           }
 
           draft.tiles = draft.tiles.map((tile) =>
-            result.eliminatedIds.includes(tile.id) ? { ...tile, isEliminated: true } : tile
+            normalizedIds.includes(tile.id) ? { ...tile, isEliminated: true } : tile
           );
           draft.lastReasoning = result.reasoning;
+          draft.lastEliminatedIds = normalizedIds;
         });
 
         set((draft) => {
