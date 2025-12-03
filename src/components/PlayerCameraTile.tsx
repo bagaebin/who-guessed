@@ -151,8 +151,6 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
     };
   }, [focusCamera, setPlayerText]);
 
-  const cameraLabel = error ? '카메라 접근 오류' : '실시간 내 모습';
-
   return (
     <group position={position} rotation-x={-0.22}>
       <RoundedBox
@@ -193,17 +191,6 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
         />
       </mesh>
 
-      <Text
-        position={[0, TILE_SIZE.height / 2 + 0.28, 0]}
-        color="#e9eef8"
-        fontSize={0.32}
-        outlineWidth={0.03}
-        outlineColor="#0a121b"
-        anchorY="bottom"
-      >
-        {cameraLabel}
-      </Text>
-
       {error && (
         <Text
           position={[0, -TILE_SIZE.height / 2 - 0.35, 0]}
@@ -225,10 +212,6 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
         center
       >
         <form className="camera-bubble" onSubmit={handleBubbleSubmit}>
-          <div className="camera-bubble__header">
-            <div className="camera-bubble__label">말풍선 메모</div>
-            <div className="camera-bubble__hint">LLM에게 소개를 보낼 수 있어요</div>
-          </div>
           <div className="camera-bubble__input-row">
             <input
               ref={inputRef}

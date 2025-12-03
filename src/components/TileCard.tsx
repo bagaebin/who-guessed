@@ -1,5 +1,5 @@
 import { useSpring, a } from '@react-spring/three';
-import { RoundedBox, Text, useTexture } from '@react-three/drei';
+import { RoundedBox, useTexture } from '@react-three/drei';
 import { MeshProps } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { CharacterTile } from '../types/appearance';
@@ -23,7 +23,6 @@ export default function TileCard({ tile, position }: TileCardProps) {
 
   const texture = useTexture(tile.image);
 
-  const label = useMemo(() => tile.id.replace('tile-', '#'), [tile.id]);
   const [baseX, baseY, baseZ] = useMemo(() => {
     if (Array.isArray(position)) {
       return [position[0] ?? 0, position[1] ?? 0, position[2] ?? 0];
@@ -45,15 +44,6 @@ export default function TileCard({ tile, position }: TileCardProps) {
         <planeGeometry args={[TILE_SIZE.width * 0.85, TILE_SIZE.height * 0.85]} />
         <a.meshBasicMaterial map={texture} opacity={opacity} transparent toneMapped={false} />
       </a.mesh>
-      <Text
-        position={[0, TILE_SIZE.height / 2 + 0.2, 0]}
-        color="white"
-        fontSize={0.24}
-        outlineWidth={0.02}
-        outlineColor="#111"
-      >
-        {label}
-      </Text>
     </a.group>
   );
 }
