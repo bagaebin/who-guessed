@@ -27,7 +27,7 @@ export default function TileCard({ tile, position }: TileCardProps) {
         <boxGeometry args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} />
         <a.meshStandardMaterial color={color} transparent opacity={opacity} roughness={0.6} />
       </a.mesh>
-      <a.mesh position={[0, TILE_SIZE.height / 2 + 0.001, 0]} rotation-x={-Math.PI / 2}>
+      <a.mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.001]}>
         <planeGeometry args={[TILE_SIZE.width * 0.85, TILE_SIZE.height * 0.85]} />
         <a.meshBasicMaterial color="#ffffff" opacity={opacity} transparent />
       </a.mesh>
