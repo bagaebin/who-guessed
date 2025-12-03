@@ -84,6 +84,51 @@ button.ghost {
   border: 1px solid #2f80ed;
 }
 
+.camera-bubble {
+  position: relative;
+  background: rgba(255, 255, 255, 0.9);
+  color: #0a1e3f;
+  padding: 0.75rem 0.85rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(10, 20, 40, 0.25);
+  min-width: 240px;
+  max-width: 320px;
+  border: 1px solid rgba(10, 30, 63, 0.14);
+}
+
+.camera-bubble::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 40%;
+  transform: translateX(-50%);
+  border-width: 0 10px 12px 10px;
+  border-style: solid;
+  border-color: transparent transparent rgba(255, 255, 255, 0.9) transparent;
+  filter: drop-shadow(0 -2px 4px rgba(10, 20, 40, 0.15));
+}
+
+.camera-bubble__label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.4rem;
+}
+
+.camera-bubble input {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(10, 30, 63, 0.3);
+  font-size: 0.95rem;
+  color: #0a1e3f;
+  background: rgba(10, 30, 63, 0.06);
+  outline: none;
+}
+
+.camera-bubble input::placeholder {
+  color: rgba(10, 30, 63, 0.55);
+}
+
 .profile, .reasoning, .status, .phase-hint, .elimination-summary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
