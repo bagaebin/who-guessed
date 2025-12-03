@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { eliminationRangeForPhase } from '../utils/phase';
 import { AppearanceCore, CharacterTile, GamePhase } from '../types/appearance';
@@ -82,14 +82,16 @@ export default function UiPanel() {
     lastReasoning,
     statusMessage,
     reset,
-    lastEliminatedIds
+    lastEliminatedIds,
+    playerText,
+    setPlayerText
   } = useGameStore();
-  const [text, setText] = useState('안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.');
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!text.trim()) return;
-    await submitPlayerText(text.trim());
+    const trimmed = playerText.trim();
+    if (!trimmed) return;
+    await submitPlayerText(trimmed);
   };
 
   return (
@@ -106,8 +108,8 @@ export default function UiPanel() {
         <label htmlFor="playerText">자신을 소개해 주세요</label>
         <textarea
           id="playerText"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          value={playerText}
+          onChange={(e) => setPlayerText(e.target.value)}
           rows={4}
           placeholder="예) 저는 ..."
         />

@@ -1,19 +1,36 @@
-import { Html, Text } from '@react-three/drei';
+import { Html, RoundedBox, Text } from '@react-three/drei';
 import { MeshProps, useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import * as THREE from 'three';
+import { useGameStore } from '../state/gameStore';
+import { TILE_COLOR_GUIDE } from '../utils/tileStyleGuide';
+
+type PlayerCameraTileProps = {
+  position: MeshProps['position'];
+  focusCamera: () => void;
+};
 
 const TILE_SIZE = { width: 3.2, height: 4.4, depth: 0.16 };
 
-export default function PlayerCameraTile({ position }: { position: MeshProps['position'] }) {
+export default function PlayerCameraTile({ position, focusCamera }: PlayerCameraTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoAspect, setVideoAspect] = useState(1);
-  const [cameraNote, setCameraNote] = useState('');
+  const { playerText, setPlayerText, submitPlayerText, isLoading } = useGameStore();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
+  const tileStyle = useMemo(() => TILE_COLOR_GUIDE.active, []);
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -86,14 +103,67 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
     }
   });
 
+  const handleBubbleSubmit = useCallback(
+    async (event?: FormEvent<HTMLFormElement>) => {
+      event?.preventDefault();
+      const trimmed = playerText.trim();
+      if (!trimmed) return;
+      await submitPlayerText(trimmed);
+    },
+    [playerText, submitPlayerText]
+  );
+
+  const handleInputKeyDown = useCallback(
+    async (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+        event.preventDefault();
+        await handleBubbleSubmit();
+      }
+    },
+    [handleBubbleSubmit]
+  );
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isEditable = target
+        ? target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+        : false;
+
+      if (isEditable) return;
+
+      if (
+        event.key.length === 1 &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.isComposing
+      ) {
+        inputRef.current?.focus();
+        focusCamera();
+        setPlayerText((prev) => `${prev}${event.key}`);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, [focusCamera, setPlayerText]);
+
   const cameraLabel = error ? '카메라 접근 오류' : '실시간 내 모습';
 
   return (
     <group position={position} rotation-x={-0.22}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} />
-        <meshStandardMaterial color="#12305d" metalness={0.24} roughness={0.38} />
-      </mesh>
+      <RoundedBox
+        args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]}
+        radius={tileStyle.borderRadius}
+        smoothness={8}
+        castShadow
+        receiveShadow
+      >
+        <meshStandardMaterial color={tileStyle.baseColor} metalness={0.2} roughness={0.6} />
+      </RoundedBox>
 
       <mesh position={[0, 0, TILE_SIZE.depth / 2 + 0.002]} scale={[-1, 1, 1]}>
         <planeGeometry args={[TILE_SIZE.width * 0.92, TILE_SIZE.height * 0.92]} />
@@ -105,9 +175,9 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
           />
         ) : (
           <meshStandardMaterial
-            color="#12243f"
-            roughness={0.74}
-            metalness={0.12}
+            color={tileStyle.accentColor}
+            roughness={0.68}
+            metalness={0.16}
             side={THREE.DoubleSide}
           />
         )}
@@ -115,7 +185,12 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
 
       <mesh position={[0, TILE_SIZE.height / 2 + 0.12, 0]}>
         <boxGeometry args={[TILE_SIZE.width * 0.8, 0.08, 0.08]} />
-        <meshStandardMaterial color="#1f1fa8ff" emissive="#151578ff" emissiveIntensity={0.85} />
+        <meshStandardMaterial
+          color={tileStyle.accentColor}
+          emissive={tileStyle.accentColor}
+          emissiveIntensity={0.6}
+          roughness={0.5}
+        />
       </mesh>
 
       <Text
@@ -149,15 +224,26 @@ export default function PlayerCameraTile({ position }: { position: MeshProps['po
         distanceFactor={3.2}
         center
       >
-        <div className="camera-bubble">
-          <div className="camera-bubble__label">말풍선 메모</div>
-          <input
-            type="text"
-            value={cameraNote}
-            onChange={(event) => setCameraNote(event.target.value)}
-            placeholder="타일 아래 말풍선에 적을 내용을 입력하세요"
-          />
-        </div>
+        <form className="camera-bubble" onSubmit={handleBubbleSubmit}>
+          <div className="camera-bubble__header">
+            <div className="camera-bubble__label">말풍선 메모</div>
+            <div className="camera-bubble__hint">LLM에게 소개를 보낼 수 있어요</div>
+          </div>
+          <div className="camera-bubble__input-row">
+            <input
+              ref={inputRef}
+              type="text"
+              value={playerText}
+              onChange={(event) => setPlayerText(event.target.value)}
+              onKeyDown={handleInputKeyDown}
+              onFocus={focusCamera}
+              placeholder="타일 아래 말풍선에 적을 내용을 입력하세요"
+            />
+            <button type="submit" disabled={isLoading}>
+              {isLoading ? '전송 중...' : '전송'}
+            </button>
+          </div>
+        </form>
       </Html>
     </group>
   );

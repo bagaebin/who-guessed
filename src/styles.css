@@ -88,12 +88,15 @@ button.ghost {
   position: relative;
   background: rgba(255, 255, 255, 0.9);
   color: #0a1e3f;
-  padding: 0.75rem 0.85rem 0.9rem;
+  padding: 0.85rem 0.95rem 1rem;
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(10, 20, 40, 0.25);
   min-width: 240px;
   max-width: 320px;
   border: 1px solid rgba(10, 30, 63, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .camera-bubble::after {
@@ -108,15 +111,33 @@ button.ghost {
   filter: drop-shadow(0 -2px 4px rgba(10, 20, 40, 0.15));
 }
 
+.camera-bubble__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .camera-bubble__label {
+  font-weight: 800;
+  font-size: 1rem;
+}
+
+.camera-bubble__hint {
+  font-size: 0.85rem;
+  color: rgba(10, 30, 63, 0.7);
   font-weight: 700;
-  font-size: 0.95rem;
-  margin-bottom: 0.4rem;
+}
+
+.camera-bubble__input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .camera-bubble input {
-  width: 100%;
-  padding: 0.55rem 0.65rem;
+  flex: 1;
+  padding: 0.6rem 0.7rem;
   border-radius: 10px;
   border: 1px solid rgba(10, 30, 63, 0.3);
   font-size: 0.95rem;
@@ -127,6 +148,23 @@ button.ghost {
 
 .camera-bubble input::placeholder {
   color: rgba(10, 30, 63, 0.55);
+}
+
+.camera-bubble button {
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(90deg, #1f4de0, #4d7bff);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(31, 77, 224, 0.28);
+}
+
+.camera-bubble button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .profile, .reasoning, .status, .phase-hint, .elimination-summary {

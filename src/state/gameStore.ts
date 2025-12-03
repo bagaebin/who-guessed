@@ -14,11 +14,13 @@ function cloneTiles(): CharacterTile[] {
 
 export const useGameStore = create<GameState & {
   submitPlayerText: (text: string) => Promise<void>;
+  setPlayerText: (next: string | ((prev: string) => string)) => void;
   reset: () => void;
 }>(
   immer((set, get) => ({
     tiles: cloneTiles(),
     playerProfile: undefined,
+    playerText: '안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.',
     round: 1,
     phase: 'early',
     isLoading: false,
@@ -30,12 +32,20 @@ export const useGameStore = create<GameState & {
       set({
         tiles: cloneTiles(),
         playerProfile: undefined,
+        playerText: '안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.',
         round: 1,
         phase: 'early',
         isLoading: false,
         lastReasoning: undefined,
         statusMessage: undefined,
         lastEliminatedIds: []
+      });
+    },
+
+    setPlayerText: (next) => {
+      set((draft) => {
+        const resolved = typeof next === 'function' ? next(draft.playerText) : next;
+        draft.playerText = resolved;
       });
     },
 
