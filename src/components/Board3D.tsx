@@ -43,8 +43,9 @@ export default function Board3D({ tiles }: Board3DProps) {
     <div className="board3d">
       <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
         <color attach="background" args={["#9ad6ff"]} />
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
+        <hemisphereLight skyColor="#d8e7ff" groundColor="#4f6b8f" intensity={0.85} />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
         <PlayerCameraTile position={[0, cameraTileY, cameraTileZ]} />
         <TileGrid tiles={tiles} />
         <ContactShadows
