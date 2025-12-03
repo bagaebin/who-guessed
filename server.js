@@ -27,6 +27,8 @@ Return ONLY a JSON object with the following shape:
 
 {
   "profile": {
+    "gender": "...",
+    "race": "...",
     "ageGroup": "...",
     "skinTone": "...",
     "bodyShape": "...",
@@ -84,8 +86,14 @@ Current phase: ${phase}
         reasoning: { fallback: "LLM 응답 파싱 실패, seedTile 사용" },
       };
     }
+    if (!parsed || typeof parsed !== "object") {
+      parsed = {};
+    }
+    const profile = { ...seedTile.core, ...(parsed.profile ?? {}) };
+    const eliminatedIds = parsed.eliminatedIds ?? [];
+    const reasoning = parsed.reasoning ?? { fallback: "LLM 응답 기본값 사용" };
 
-    res.json(parsed);
+    res.json({ profile, eliminatedIds, reasoning });
   } catch (error) {
     console.error("OpenAI error:", error);
     res.status(500).json({ error: "OpenAI request failed" });
