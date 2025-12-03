@@ -11,9 +11,13 @@ type Board3DProps = {
   tiles: CharacterTile[];
 };
 
+// 한 행에 배치되는 타일 수
 const TILE_COLUMNS = 8;
+// 타일 사이 간격
 const TILE_SPACING = 2.2;
+// Camera 타일과 앞열 타일 사이 간격
 const CAMERA_TILE_FRONT_GAP = TILE_SPACING * 1.6;
+// Camera 기본 위치와 타일 위치 조정값
 const CAMERA_POSITION: [number, number, number] = [0, 2, 8];
 const CAMERA_TARGET: [number, number, number] = [0, 1.5, 0];
 const parsedCameraZAdjust = Number.parseFloat(import.meta.env.VITE_CAMERA_TILE_Z_ADJUST ?? '');
