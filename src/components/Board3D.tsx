@@ -1,4 +1,4 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
@@ -50,6 +50,9 @@ function SceneContents({
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
+  const autoTiltCooldownRef = useRef(0);
+
+  const defaultTarget = useMemo(() => new THREE.Vector3(...CAMERA_TARGET), []);
 
   const baseOffset = useMemo(
     () =>
@@ -60,12 +63,37 @@ function SceneContents({
   );
 
   const focusOnCameraTile = useCallback(() => {
-    const targetVector = new THREE.Vector3(...cameraTilePosition);
-    const nextPosition = targetVector.clone().add(baseOffset);
+    const cameraTileTarget = new THREE.Vector3(...cameraTilePosition);
+    const blendedTarget = cameraTileTarget.clone().lerp(defaultTarget, 0.65);
+    const nextPosition = blendedTarget.clone().add(baseOffset);
     camera.position.copy(nextPosition);
-    controlsRef.current?.target.copy(targetVector);
+    controlsRef.current?.target.copy(blendedTarget);
     controlsRef.current?.update();
-  }, [baseOffset, camera, cameraTilePosition]);
+    autoTiltCooldownRef.current = 16;
+  }, [baseOffset, camera, cameraTilePosition, defaultTarget]);
+
+  useFrame(() => {
+    if (autoTiltCooldownRef.current > 0) {
+      autoTiltCooldownRef.current -= 1;
+      return;
+    }
+
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const target = controls.target;
+    const zLift = camera.position.z - target.z;
+
+    if (zLift <= 0.05) return;
+
+    const downwardBias = THREE.MathUtils.clamp(zLift / 28, 0.06, 0.28);
+    const desiredTargetY = THREE.MathUtils.lerp(target.y, defaultTarget.y, downwardBias);
+
+    if (Math.abs(desiredTargetY - target.y) > 0.0001) {
+      target.y = desiredTargetY;
+      controls.update();
+    }
+  });
 
   return (
     <>

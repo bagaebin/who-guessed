@@ -1,5 +1,5 @@
 import { Html, RoundedBox, Text } from '@react-three/drei';
-import { MeshProps, useFrame } from '@react-three/fiber';
+import { MeshProps, useFrame, useThree } from '@react-three/fiber';
 import {
   FormEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -24,13 +24,18 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const bubbleGroupRef = useRef<THREE.Group | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoAspect, setVideoAspect] = useState(1);
+  const [bubbleDistanceFactor, setBubbleDistanceFactor] = useState(3.2);
+  const bubbleDistanceRef = useRef(3.2);
   const { playerText, setPlayerText, submitPlayerText, isLoading } = useGameStore();
+  const { camera, viewport } = useThree();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
   const tileStyle = useMemo(() => TILE_COLOR_GUIDE.active, []);
+  const bubbleWorldPosition = useMemo(() => new THREE.Vector3(), []);
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -101,6 +106,17 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
         textureRef.current.offset.set(0, (1 - repeatY) / 2);
       }
     }
+
+    if (bubbleGroupRef.current) {
+      bubbleGroupRef.current.getWorldPosition(bubbleWorldPosition);
+      const { height } = viewport.getCurrentViewport(camera, bubbleWorldPosition);
+      const scaledDistance = THREE.MathUtils.clamp(height * 0.5, 2.4, 7.5);
+
+      if (Math.abs(scaledDistance - bubbleDistanceRef.current) > 0.01) {
+        bubbleDistanceRef.current = scaledDistance;
+        setBubbleDistanceFactor(scaledDistance);
+      }
+    }
   });
 
   const handleBubbleSubmit = useCallback(
@@ -152,7 +168,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
   }, [focusCamera, setPlayerText]);
 
   return (
-    <group position={position} rotation-x={-0.22}>
+    <group position={position} rotation-x={-0.22} ref={bubbleGroupRef}>
       <RoundedBox
         args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]}
         radius={tileStyle.borderRadius}
@@ -208,7 +224,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
 
       <Html
         position={[0, -TILE_SIZE.height / 2 - 0.6, TILE_SIZE.depth / 2]}
-        distanceFactor={3.2}
+        distanceFactor={bubbleDistanceFactor}
         center
       >
         <form className="camera-bubble" onSubmit={handleBubbleSubmit}>
