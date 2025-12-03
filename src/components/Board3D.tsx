@@ -63,13 +63,14 @@ function SceneContents({
   );
 
   const focusOnCameraTile = useCallback(() => {
-    const targetVector = new THREE.Vector3(...cameraTilePosition);
-    const nextPosition = targetVector.clone().add(baseOffset);
+    const cameraTileTarget = new THREE.Vector3(...cameraTilePosition);
+    const blendedTarget = cameraTileTarget.clone().lerp(defaultTarget, 0.65);
+    const nextPosition = blendedTarget.clone().add(baseOffset);
     camera.position.copy(nextPosition);
-    controlsRef.current?.target.copy(targetVector);
+    controlsRef.current?.target.copy(blendedTarget);
     controlsRef.current?.update();
     autoTiltCooldownRef.current = 16;
-  }, [baseOffset, camera, cameraTilePosition]);
+  }, [baseOffset, camera, cameraTilePosition, defaultTarget]);
 
   useFrame(() => {
     if (autoTiltCooldownRef.current > 0) {

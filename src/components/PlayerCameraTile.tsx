@@ -31,12 +31,11 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
   const [bubbleDistanceFactor, setBubbleDistanceFactor] = useState(3.2);
   const bubbleDistanceRef = useRef(3.2);
   const { playerText, setPlayerText, submitPlayerText, isLoading } = useGameStore();
-  const { camera } = useThree();
+  const { camera, viewport } = useThree();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
   const tileStyle = useMemo(() => TILE_COLOR_GUIDE.active, []);
   const bubbleWorldPosition = useMemo(() => new THREE.Vector3(), []);
-  const cameraWorldPosition = useMemo(() => new THREE.Vector3(), []);
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -110,9 +109,8 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
 
     if (bubbleGroupRef.current) {
       bubbleGroupRef.current.getWorldPosition(bubbleWorldPosition);
-      camera.getWorldPosition(cameraWorldPosition);
-      const distance = cameraWorldPosition.distanceTo(bubbleWorldPosition);
-      const scaledDistance = THREE.MathUtils.clamp(distance, 2.4, 18);
+      const { height } = viewport.getCurrentViewport(camera, bubbleWorldPosition);
+      const scaledDistance = THREE.MathUtils.clamp(height * 0.5, 2.4, 7.5);
 
       if (Math.abs(scaledDistance - bubbleDistanceRef.current) > 0.01) {
         bubbleDistanceRef.current = scaledDistance;
