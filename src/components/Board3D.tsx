@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { ContactShadows, OrbitControls } from '@react-three/drei';
 import { CharacterTile } from '../types/appearance';
 import TileCard from './TileCard';
+import PlayerCameraTile from './PlayerCameraTile';
 
 type Board3DProps = {
   tiles: CharacterTile[];
@@ -30,6 +31,7 @@ export default function Board3D({ tiles }: Board3DProps) {
         <color attach="background" args={[0.06, 0.08, 0.12]} />
         <ambientLight intensity={0.4} />
         <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow />
+        <PlayerCameraTile position={[0, -0.35, 8]} />
         <TileGrid tiles={tiles} />
         <ContactShadows
           position={[0, -0.8, 0]}

@@ -1,5 +1,4 @@
 import Board3D from './components/Board3D';
-import PlayerCameraTile from './components/PlayerCameraTile';
 import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
 import './styles.css';
@@ -25,7 +24,6 @@ export default function App() {
     <div className="app">
       <div className="left">
         <Board3D tiles={tiles} />
-        <PlayerCameraTile />
       </div>
       <div className="right">
         <UiPanel />
