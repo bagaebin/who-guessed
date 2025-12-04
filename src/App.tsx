@@ -11,8 +11,8 @@ function FinalReveal() {
   const tile = remaining[0];
   return (
     <div className="final-reveal">
-      <h2>예측된 닮은꼴</h2>
-      <p>{tile.id}번 타일이 선택되었습니다.</p>
+      <h2>Predicted Look-alike</h2>
+      <p>Tile {tile.id} was selected.</p>
       <img src={tile.image} alt={tile.id} />
     </div>
   );
@@ -40,9 +40,9 @@ export default function App() {
       </div>
       <div className={`admin-panel ${isAdminOpen ? 'admin-panel--open' : ''}`}>
         <div className="admin-panel__header">
-          <p>옵션 키로 관리자 모드 전환</p>
+          <p>Press Option to toggle admin mode</p>
           <button className="ghost" onClick={() => setIsAdminOpen(false)}>
-            닫기
+            Close
           </button>
         </div>
         <UiPanel />

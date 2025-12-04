@@ -7,7 +7,7 @@ function ProfileList({ profile }: { profile: AppearanceCore }) {
   const entries = useMemo(() => Object.entries(profile), [profile]);
   return (
     <div className="profile">
-      <h4>LLM 추정 프로필</h4>
+      <h4>LLM Estimated Profile</h4>
       <ul>
         {entries.map(([key, value]) => (
           <li key={key}>
@@ -23,7 +23,7 @@ function ReasoningView({ reasoning }: { reasoning?: Record<string, string> }) {
   if (!reasoning) return null;
   return (
     <div className="reasoning">
-      <h4>LLM 근거</h4>
+      <h4>LLM Rationale</h4>
       <ul>
         {Object.entries(reasoning).map(([key, value]) => (
           <li key={key}>
@@ -38,7 +38,7 @@ function ReasoningView({ reasoning }: { reasoning?: Record<string, string> }) {
 function RemainingList({ tiles }: { tiles: CharacterTile[] }) {
   const remaining = tiles.filter((t) => !t.isEliminated);
   return (
-    <p className="remaining">남은 타일: {remaining.length} / {tiles.length}</p>
+    <p className="remaining">Remaining tiles: {remaining.length} / {tiles.length}</p>
   );
 }
 
@@ -46,9 +46,9 @@ function PhaseHint({ phase }: { phase: GamePhase }) {
   const range = eliminationRangeForPhase(phase);
   return (
     <div className="phase-hint">
-      <strong>Phase 규칙</strong>
+      <strong>Phase rules</strong>
       <p>
-        {phase} 단계에서는 {range.min}–{range.max}장의 타일이 뒤집힙니다.
+        In phase {phase}, {range.min}–{range.max} tiles will be flipped.
       </p>
     </div>
   );
@@ -56,10 +56,10 @@ function PhaseHint({ phase }: { phase: GamePhase }) {
 
 function EliminationSummary({ ids, tiles }: { ids: string[]; tiles: CharacterTile[] }) {
   if (!ids.length) return null;
-  const remainingLabel = new Map(tiles.map((tile) => [tile.id, tile.isEliminated ? '제거됨' : '생존']));
+  const remainingLabel = new Map(tiles.map((tile) => [tile.id, tile.isEliminated ? 'Eliminated' : 'Safe']));
   return (
     <div className="elimination-summary">
-      <h4>이번 턴에 뒤집힌 타일</h4>
+      <h4>Tiles flipped this turn</h4>
       <ul>
         {ids.map((id) => (
           <li key={id}>
@@ -99,22 +99,22 @@ export default function UiPanel() {
       <div className="header">
         <div>
           <h1>Who Guessed?</h1>
-          <p>라운드 {round} • 단계 {phase}</p>
+          <p>Round {round} • Phase {phase}</p>
         </div>
-        <button onClick={reset} className="ghost">새 게임</button>
+        <button onClick={reset} className="ghost">New game</button>
       </div>
 
       <form onSubmit={handleSubmit} className="chat-box">
-        <label htmlFor="playerText">자신을 소개해 주세요</label>
+        <label htmlFor="playerText">Introduce yourself</label>
         <textarea
           id="playerText"
           value={playerText}
           onChange={(e) => setPlayerText(e.target.value)}
           rows={4}
-          placeholder="예) 저는 ..."
+          placeholder="e.g. I am..."
         />
         <button type="submit" disabled={isLoading}>
-          {isLoading ? '추론 중...' : 'LLM에게 보내기'}
+          {isLoading ? 'Thinking...' : 'Send to LLM'}
         </button>
       </form>
 

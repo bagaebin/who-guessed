@@ -15,12 +15,11 @@ import { TILE_COLOR_GUIDE } from '../utils/tileStyleGuide';
 
 type PlayerCameraTileProps = {
   position: MeshProps['position'];
-  focusCamera: () => void;
 };
 
 const TILE_SIZE = { width: 3.2, height: 4.4, depth: 0.16 };
 
-export default function PlayerCameraTile({ position, focusCamera }: PlayerCameraTileProps) {
+export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -43,7 +42,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
 
     const startCamera = async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError('카메라를 사용할 수 없습니다. 권한 설정을 확인해주세요.');
+        setError('Camera is unavailable. Please check your permissions.');
         return;
       }
 
@@ -69,7 +68,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
 
         await video.play();
       } catch (err) {
-        setError('카메라 접근에 실패했습니다. 브라우저 권한을 확인해주세요.');
+        setError('Failed to access your camera. Please check browser permissions.');
       }
     };
 
@@ -141,7 +140,6 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
         !event.isComposing
       ) {
         inputRef.current?.focus();
-        focusCamera();
         setPlayerText((prev) => `${prev}${event.key}`);
       }
     };
@@ -218,11 +216,10 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
               value={playerText}
               onChange={(event) => setPlayerText(event.target.value)}
               onKeyDown={handleInputKeyDown}
-              onFocus={focusCamera}
-              placeholder="타일 아래 말풍선에 적을 내용을 입력하세요"
+              placeholder="Type your bubble text"
             />
             <button type="submit" disabled={isLoading}>
-              {isLoading ? '전송 중...' : '전송'}
+              {isLoading ? 'Sending...' : 'Send'}
             </button>
           </div>
         </form>

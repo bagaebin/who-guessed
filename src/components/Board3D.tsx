@@ -124,21 +124,13 @@ function SceneContents({
     [baseOffset, focusTargetVector]
   );
 
-  const focusOnCameraTile = useCallback(() => {
-    camera.position.copy(focusPositionVector);
-    controlsRef.current?.target.copy(focusTargetVector);
-    baseTargetRef.current.copy(focusTargetVector);
-    tiltOffsetRef.current = 0;
-    controlsRef.current?.update();
-  }, [camera, focusPositionVector, focusTargetVector]);
-
   return (
     <>
       <color attach="background" args={["#9ad6ff"]} />
       <hemisphereLight skyColor="#a3c4f9ff" groundColor="#4f6b8f" intensity={0.85} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
-      <PlayerCameraTile position={cameraTilePosition} focusCamera={focusOnCameraTile} />
+      <PlayerCameraTile position={cameraTilePosition} />
       <TileGrid
         tiles={tiles}
         introState={{
@@ -156,11 +148,11 @@ function SceneContents({
       />
       <OrbitControls
         ref={controlsRef}
-        enableRotate={false}
+        enableRotate
         enablePan
         target={CAMERA_TARGET}
         mouseButtons={{
-          LEFT: THREE.MOUSE.PAN,
+          LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
           RIGHT: THREE.MOUSE.PAN
         }}
