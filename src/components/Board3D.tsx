@@ -72,12 +72,20 @@ function SceneContents({
     []
   );
 
+  const syncOrbitTarget = useCallback(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    controls.target.copy(targetGoalRef.current);
+    controls.update();
+  }, []);
+
   const focusOnCameraTile = useCallback(() => {
     const targetVector = new THREE.Vector3(...cameraTilePosition);
     const nextPosition = targetVector.clone().add(baseOffset);
     cameraGoalRef.current.copy(nextPosition);
     targetGoalRef.current.copy(targetVector);
-  }, [baseOffset, cameraTilePosition]);
+    syncOrbitTarget();
+  }, [baseOffset, cameraTilePosition, syncOrbitTarget]);
 
   useEffect(() => {
     if (!introComplete) return;
@@ -85,7 +93,14 @@ function SceneContents({
     const zoomedTarget = new THREE.Vector3(...INTRO_TARGET_OFFSET);
     cameraGoalRef.current.copy(zoomedPosition);
     targetGoalRef.current.copy(zoomedTarget);
-  }, [introComplete]);
+    syncOrbitTarget();
+  }, [introComplete, syncOrbitTarget]);
+
+  useEffect(() => {
+    camera.position.copy(new THREE.Vector3(...CAMERA_POSITION));
+    targetGoalRef.current.copy(new THREE.Vector3(...CAMERA_TARGET));
+    syncOrbitTarget();
+  }, [syncOrbitTarget]);
 
   useFrame((_, delta) => {
     const goalPosition = cameraGoalRef.current;
