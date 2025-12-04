@@ -9,9 +9,17 @@ import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } f
 
 type Board3DProps = {
   tiles: CharacterTile[];
+  lastEliminatedIds?: string[];
 };
 
 type IntroStage = 'idle' | 'dropping' | 'overview' | 'focusing' | 'done';
+type ScriptedCameraCue = {
+  id: string;
+  target: THREE.Vector3;
+  position: THREE.Vector3;
+  lerpSpeed?: number;
+  onComplete?: () => void;
+};
 
 // 한 행에 배치되는 타일 수
 const TILE_COLUMNS = 8;
@@ -36,7 +44,8 @@ const AUTO_TILT_MAX = 1.1;
 
 function TileGrid({
   tiles,
-  introState
+  introState,
+  eliminationAnimations
 }: {
   tiles: CharacterTile[];
   introState?: {
@@ -44,6 +53,7 @@ function TileGrid({
     tileOrder: string[];
     onTileDropComplete: () => void;
   };
+  eliminationAnimations?: Map<string, { shouldFall: boolean; delayMs?: number }>;
 }) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const introTileIndexMap = useMemo(() => {
@@ -70,7 +80,16 @@ function TileGrid({
                   introState?.stage === 'dropping' ? introState?.onTileDropComplete : undefined
               }
             : undefined;
-        return <TileCard key={tile.id} tile={tile} position={[x, y, z]} introAnimation={introAnimation} />;
+        const eliminationAnimation = eliminationAnimations?.get(tile.id);
+        return (
+          <TileCard
+            key={tile.id}
+            tile={tile}
+            position={[x, y, z]}
+            introAnimation={introAnimation}
+            eliminationAnimation={eliminationAnimation}
+          />
+        );
       })}
     </group>
   );
@@ -84,9 +103,12 @@ function SceneContents({
   onIntroTileComplete,
   onIntroOverviewComplete,
   onIntroFocusComplete,
+  eliminationAnimations,
   overviewTarget,
   overviewPosition,
-  focusTarget
+  focusTarget,
+  cameraCue,
+  baseOffset
 }: {
   tiles: CharacterTile[];
   cameraTilePosition: [number, number, number];
@@ -95,9 +117,12 @@ function SceneContents({
   onIntroTileComplete: () => void;
   onIntroOverviewComplete: () => void;
   onIntroFocusComplete: () => void;
+  eliminationAnimations: Map<string, { shouldFall: boolean; delayMs?: number }>;
   overviewTarget: [number, number, number];
   overviewPosition: [number, number, number];
   focusTarget: [number, number, number];
+  cameraCue: ScriptedCameraCue | null;
+  baseOffset: THREE.Vector3;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
@@ -110,14 +135,6 @@ function SceneContents({
   const overviewPositionVector = useMemo(() => new THREE.Vector3(...overviewPosition), [overviewPosition]);
   const overviewTargetVector = useMemo(() => new THREE.Vector3(...overviewTarget), [overviewTarget]);
   const focusTargetVector = useMemo(() => new THREE.Vector3(...focusTarget), [focusTarget]);
-
-  const baseOffset = useMemo(
-    () =>
-      new THREE.Vector3(...CAMERA_POSITION).sub(
-        new THREE.Vector3(...CAMERA_TARGET)
-      ),
-    []
-  );
 
   const focusPositionVector = useMemo(
     () => focusTargetVector.clone().add(baseOffset),
@@ -146,6 +163,7 @@ function SceneContents({
           tileOrder: introTileIds,
           onTileDropComplete: onIntroTileComplete
         }}
+        eliminationAnimations={eliminationAnimations}
       />
       <ContactShadows
         position={[0, -0.8, 0]}
@@ -183,6 +201,7 @@ function SceneContents({
         focusTarget={focusTargetVector}
         onIntroOverviewComplete={onIntroOverviewComplete}
         onIntroFocusComplete={onIntroFocusComplete}
+        cameraCue={cameraCue}
       />
     </>
   );
@@ -203,7 +222,8 @@ function UpdateCamera({
   focusPosition,
   focusTarget,
   onIntroOverviewComplete,
-  onIntroFocusComplete
+  onIntroFocusComplete,
+  cameraCue
 }: {
   controlsRef: MutableRefObject<OrbitControlsImpl | null>;
   camera: THREE.Camera;
@@ -220,7 +240,23 @@ function UpdateCamera({
   focusTarget: THREE.Vector3;
   onIntroOverviewComplete: () => void;
   onIntroFocusComplete: () => void;
+  cameraCue: ScriptedCameraCue | null;
 }) {
+  const activeCueIdRef = useRef<string | null>(null);
+  const cueCompletedRef = useRef(false);
+
+  useEffect(() => {
+    if (!cameraCue) {
+      activeCueIdRef.current = null;
+      cueCompletedRef.current = false;
+      return;
+    }
+    if (cameraCue.id !== activeCueIdRef.current) {
+      activeCueIdRef.current = cameraCue.id;
+      cueCompletedRef.current = false;
+    }
+  }, [cameraCue]);
+
   useFrame((_, delta) => {
     const controls = controlsRef.current;
     if (!controls || !(camera instanceof THREE.PerspectiveCamera)) return;
@@ -257,6 +293,19 @@ function UpdateCamera({
         focusCompleteRef.current = true;
         onIntroFocusComplete();
       }
+    } else if (introState === 'done' && cameraCue) {
+      const cueLerp = 1 - Math.exp(-delta * (cameraCue.lerpSpeed ?? 2));
+      camera.position.lerp(cameraCue.position, cueLerp);
+      baseTargetRef.current.lerp(cameraCue.target, cueLerp);
+
+      if (
+        !cueCompletedRef.current &&
+        camera.position.distanceTo(cameraCue.position) < FOCUS_LERP_THRESHOLD &&
+        baseTargetRef.current.distanceTo(cameraCue.target) < FOCUS_LERP_THRESHOLD
+      ) {
+        cueCompletedRef.current = true;
+        cameraCue.onComplete?.();
+      }
     }
 
     const heightAboveTarget = camera.position.y - baseTargetRef.current.y;
@@ -277,13 +326,23 @@ function UpdateCamera({
   return null;
 }
 
-export default function Board3D({ tiles }: Board3DProps) {
+export default function Board3D({ tiles, lastEliminatedIds = [] }: Board3DProps) {
   const [introStage, setIntroStage] = useState<IntroStage>('idle');
   const [introDropCount, setIntroDropCount] = useState(0);
+  const [cameraCue, setCameraCue] = useState<ScriptedCameraCue | null>(null);
+  const [queuedEliminations, setQueuedEliminations] = useState<string[]>([]);
+  const [eliminationAnimations, setEliminationAnimations] = useState<
+    Map<string, { shouldFall: boolean; delayMs?: number }>
+  >(new Map());
+  const eliminationTimeoutRef = useRef<number | null>(null);
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
+  const baseOffset = useMemo(
+    () => new THREE.Vector3(...CAMERA_POSITION).sub(new THREE.Vector3(...CAMERA_TARGET)),
+    []
+  );
 
   const introTileIds = useMemo(
     () => tiles.slice(0, MAX_INTRO_TILE_COUNT).map((tile) => tile.id),
@@ -298,6 +357,22 @@ export default function Board3D({ tiles }: Board3DProps) {
     overviewTargetY + OVERVIEW_POSITION_Y_PADDING,
     gridHalfDepth + CAMERA_TILE_FRONT_GAP + OVERVIEW_POSITION_Z_PADDING
   ];
+  const overviewPositionVector = useMemo(() => new THREE.Vector3(...overviewPosition), [overviewPosition]);
+  const overviewTargetVector = useMemo(() => new THREE.Vector3(...overviewTarget), [overviewTarget]);
+
+  const tilePositionMap = useMemo(() => {
+    const rowsCount = Math.ceil(tiles.length / TILE_COLUMNS);
+    return new Map(
+      tiles.map((tile, index) => {
+        const row = Math.floor(index / TILE_COLUMNS);
+        const col = index % TILE_COLUMNS;
+        const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+        const z = ((rowsCount - 1) / 2 - row) * TILE_SPACING;
+        const y = row * STAIR_STEP;
+        return [tile.id, [x, y, z] as [number, number, number]];
+      })
+    );
+  }, [tiles]);
 
   useEffect(() => {
     if (introTileIds.length) {
@@ -323,6 +398,93 @@ export default function Board3D({ tiles }: Board3DProps) {
     setIntroStage('done');
   }, []);
 
+  useEffect(() => {
+    if (eliminationTimeoutRef.current) {
+      window.clearTimeout(eliminationTimeoutRef.current);
+      eliminationTimeoutRef.current = null;
+    }
+
+    if (!lastEliminatedIds.length) {
+      setQueuedEliminations([]);
+      setEliminationAnimations(new Map());
+      return;
+    }
+
+    setCameraCue(null);
+    setQueuedEliminations(lastEliminatedIds);
+    setEliminationAnimations(new Map(lastEliminatedIds.map((id) => [id, { shouldFall: false }])));
+  }, [lastEliminatedIds]);
+
+  const focusAndDropTile = useCallback(
+    (index: number) => {
+      if (!queuedEliminations.length) return;
+
+      if (index >= queuedEliminations.length) {
+        setCameraCue({
+          id: `overview-${Date.now()}`,
+          target: overviewTargetVector,
+          position: overviewPositionVector,
+          lerpSpeed: 1.8,
+          onComplete: () => setCameraCue(null)
+        });
+        return;
+      }
+
+      const tileId = queuedEliminations[index];
+      const tilePosition = tilePositionMap.get(tileId);
+      if (!tilePosition) {
+        focusAndDropTile(index + 1);
+        return;
+      }
+
+      const tileTarget = new THREE.Vector3(...tilePosition);
+      const focusPosition = tileTarget
+        .clone()
+        .add(baseOffset.clone().multiplyScalar(0.55))
+        .add(new THREE.Vector3(0, 0.35, 0));
+
+      setCameraCue({
+        id: `tile-${tileId}-${Date.now()}`,
+        target: tileTarget,
+        position: focusPosition,
+        lerpSpeed: 2.6,
+        onComplete: () => {
+          setEliminationAnimations((prev) => {
+            const next = new Map(prev);
+            const prevState = next.get(tileId) ?? { shouldFall: false };
+            next.set(tileId, { ...prevState, shouldFall: true, delayMs: 80 });
+            return next;
+          });
+
+          eliminationTimeoutRef.current = window.setTimeout(() => {
+            focusAndDropTile(index + 1);
+          }, 900);
+        }
+      });
+    },
+    [baseOffset, overviewPositionVector, overviewTargetVector, queuedEliminations, tilePositionMap]
+  );
+
+  useEffect(() => {
+    if (introStage !== 'done' || !queuedEliminations.length) return;
+
+    focusAndDropTile(0);
+
+    return () => {
+      if (eliminationTimeoutRef.current) {
+        window.clearTimeout(eliminationTimeoutRef.current);
+      }
+    };
+  }, [focusAndDropTile, introStage, queuedEliminations]);
+
+  useEffect(() => {
+    return () => {
+      if (eliminationTimeoutRef.current) {
+        window.clearTimeout(eliminationTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="board3d">
       <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
@@ -334,9 +496,12 @@ export default function Board3D({ tiles }: Board3DProps) {
           onIntroTileComplete={handleTileDropComplete}
           onIntroOverviewComplete={handleIntroOverviewComplete}
           onIntroFocusComplete={handleIntroFocusComplete}
+          eliminationAnimations={eliminationAnimations}
           overviewTarget={overviewTarget}
           overviewPosition={overviewPosition}
           focusTarget={cameraTilePosition}
+          cameraCue={cameraCue}
+          baseOffset={baseOffset}
         />
       </Canvas>
     </div>
