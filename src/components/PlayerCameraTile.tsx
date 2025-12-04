@@ -148,7 +148,7 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [focusCamera, setPlayerText]);
+  }, [setPlayerText]);
 
   const bubbleDistanceFactor = useMemo(() => {
     const baseDistanceFactor = 3.8;
