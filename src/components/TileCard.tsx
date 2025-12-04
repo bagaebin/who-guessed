@@ -2,7 +2,7 @@ import { to } from '@react-spring/core';
 import { useSpring, a } from '@react-spring/three';
 import { RoundedBox, useTexture } from '@react-three/drei';
 import { MeshProps } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { CharacterTile } from '../types/appearance';
 import { getTileStyle } from '../utils/tileStyleGuide';
 
@@ -15,31 +15,49 @@ type TileCardProps = {
     initialHeight?: number;
     onComplete?: () => void;
   };
+  eliminationAnimation?: {
+    shouldFall: boolean;
+    delayMs?: number;
+  };
 };
 
 const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 
-export default function TileCard({ tile, position, introAnimation }: TileCardProps) {
+export default function TileCard({ tile, position, introAnimation, eliminationAnimation }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
+  const introStartedRef = useRef(false);
+  const introDelayRef = useRef(introAnimation?.delayMs ?? 0);
+  const introHeightRef = useRef(introAnimation?.initialHeight ?? 4.5);
   const introEnabled = Boolean(introAnimation?.isActive);
+  const shouldStartIntro = introEnabled && !introStartedRef.current;
+  const eliminationDelay = eliminationAnimation?.delayMs ?? 0;
+  const eliminationEnabled = tile.isEliminated && (eliminationAnimation?.shouldFall ?? true);
+
+  useEffect(() => {
+    if (introEnabled && !introStartedRef.current) {
+      introStartedRef.current = true;
+      introDelayRef.current = introAnimation?.delayMs ?? introDelayRef.current;
+      introHeightRef.current = introAnimation?.initialHeight ?? introHeightRef.current;
+    }
+  }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight]);
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
-    rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
+    rotationX: eliminationEnabled ? -(Math.PI / 2 + 0.2) : -0.2,
     baseColor: style.baseColor,
     opacity: style.opacity,
-    yOffset: tile.isEliminated ? -0.25 : 0,
+    yOffset: eliminationEnabled ? -0.25 : 0,
     dropOffset: 0,
     introOpacity: 1,
-    from: introEnabled
+    from: shouldStartIntro
       ? {
-          dropOffset: introAnimation?.initialHeight ?? 4.5,
+          dropOffset: introHeightRef.current,
           introOpacity: 0
         }
       : undefined,
-    delay: introEnabled ? introAnimation?.delayMs ?? 0 : 0,
-    config: { mass: 1.1, tension: 180, friction: 18 },
-    reset: introEnabled,
+    delay: shouldStartIntro ? introDelayRef.current : eliminationDelay,
+    config: { mass: 1.1, tension: 360, friction: 18 },
+    reset: shouldStartIntro,
     onRest: (result) => {
       if (
         introEnabled &&
