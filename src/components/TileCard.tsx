@@ -23,14 +23,18 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
   const introStartedRef = useRef(false);
+  const introDelayRef = useRef(introAnimation?.delayMs ?? 0);
+  const introHeightRef = useRef(introAnimation?.initialHeight ?? 4.5);
   const introEnabled = Boolean(introAnimation?.isActive);
   const shouldStartIntro = introEnabled && !introStartedRef.current;
 
   useEffect(() => {
     if (introEnabled && !introStartedRef.current) {
       introStartedRef.current = true;
+      introDelayRef.current = introAnimation?.delayMs ?? introDelayRef.current;
+      introHeightRef.current = introAnimation?.initialHeight ?? introHeightRef.current;
     }
-  }, [introEnabled]);
+  }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight]);
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
     rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
@@ -41,11 +45,11 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
     introOpacity: 1,
     from: shouldStartIntro
       ? {
-          dropOffset: introAnimation?.initialHeight ?? 4.5,
+          dropOffset: introHeightRef.current,
           introOpacity: 0
         }
       : undefined,
-    delay: shouldStartIntro ? introAnimation?.delayMs ?? 0 : 0,
+    delay: introDelayRef.current,
     config: { mass: 1.1, tension: 180, friction: 18 },
     reset: shouldStartIntro,
     onRest: (result) => {
