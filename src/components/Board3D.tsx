@@ -237,6 +237,7 @@ function UpdateCamera({
 export default function Board3D({ tiles }: Board3DProps) {
   const [introStage, setIntroStage] = useState<IntroStage>('idle');
   const [introDropCount, setIntroDropCount] = useState(0);
+  const introHasRunRef = useRef(false);
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
@@ -245,7 +246,8 @@ export default function Board3D({ tiles }: Board3DProps) {
   const introTileIds = useMemo(() => tiles.slice(0, INTRO_TILE_COUNT).map((tile) => tile.id), [tiles]);
 
   useEffect(() => {
-    if (introTileIds.length) {
+    if (!introHasRunRef.current && introTileIds.length) {
+      setIntroDropCount(0);
       setIntroStage('dropping');
     }
   }, [introTileIds.length]);
@@ -261,6 +263,7 @@ export default function Board3D({ tiles }: Board3DProps) {
   }, [introTileIds.length]);
 
   const handleIntroZoomComplete = useCallback(() => {
+    introHasRunRef.current = true;
     setIntroStage('done');
   }, []);
 
