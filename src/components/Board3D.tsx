@@ -6,12 +6,14 @@ import TileCard from './TileCard';
 import PlayerCameraTile from './PlayerCameraTile';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useGameStore } from '../state/gameStore';
 
 type Board3DProps = {
   tiles: CharacterTile[];
 };
 
-type IntroStage = 'idle' | 'dropping' | 'overview' | 'focusing' | 'done';
+type IntroStage = 'idle' | 'dropping' | 'overview' | 'done';
+type CinematicStage = 'idle' | 'focusing' | 'holding' | 'returning';
 
 // 한 행에 배치되는 타일 수
 const TILE_COLUMNS = 8;
@@ -22,17 +24,26 @@ const CAMERA_TILE_FRONT_GAP = TILE_SPACING * 1.6;
 // Camera 기본 위치와 타일 위치 조정값
 const CAMERA_POSITION: [number, number, number] = [0, 2, 8];
 const CAMERA_TARGET: [number, number, number] = [0, 1.5, 0];
+const INTRO_START_POSITION: [number, number, number] = [0, 4.2, 15];
+const INTRO_START_TARGET: [number, number, number] = [0, 1.4, 0];
+const INTRO_DROP_INTERVAL_MS = 420;
+const INTRO_DROP_HEIGHT = 4.5;
+const INTRO_HEIGHT_STEP = 0.6;
 const parsedCameraZAdjust = Number.parseFloat(import.meta.env.VITE_CAMERA_TILE_Z_ADJUST ?? '');
 const CAMERA_TILE_Y_ADJUST = Number.isFinite(parsedCameraZAdjust) ? parsedCameraZAdjust : 0;
 const parsedRowStep = Number.parseFloat(import.meta.env.VITE_TILE_ROW_STEP ?? '');
 const STAIR_STEP = Number.isFinite(parsedRowStep) ? parsedRowStep : 0.32;
 const MAX_INTRO_TILE_COUNT = 24;
-const OVERVIEW_TARGET_Y_OFFSET = 0.6;
-const OVERVIEW_POSITION_Z_PADDING = 10;
-const OVERVIEW_POSITION_Y_PADDING = 4.2;
 const FOCUS_LERP_THRESHOLD = 0.08;
 const AUTO_TILT_SLOPE = 0.08;
 const AUTO_TILT_MAX = 1.1;
+const TILE_TOP_OFFSET = 1.35;
+const INTRO_START_POSITION_VECTOR = new THREE.Vector3(...INTRO_START_POSITION);
+const INTRO_START_TARGET_VECTOR = new THREE.Vector3(...INTRO_START_TARGET);
+const CINEMATIC_FOCUS_OFFSET = new THREE.Vector3(0, 1.4, 4.4);
+const CINEMATIC_HOLD_DURATION = 0.5;
+const CINEMATIC_LERP_RATE = 2.6;
+const CINEMATIC_RETURN_RATE = 1.9;
 
 function TileGrid({
   tiles,
@@ -64,8 +75,8 @@ function TileGrid({
           introIndex !== undefined
             ? {
                 isActive: introState?.stage === 'dropping',
-                delayMs: introIndex * 320,
-                initialHeight: 6 + introIndex * 0.3,
+                delayMs: introIndex * INTRO_DROP_INTERVAL_MS,
+                initialHeight: INTRO_DROP_HEIGHT + introIndex * INTRO_HEIGHT_STEP,
                 onComplete:
                   introState?.stage === 'dropping' ? introState?.onTileDropComplete : undefined
               }
@@ -83,10 +94,18 @@ function SceneContents({
   introTileIds,
   onIntroTileComplete,
   onIntroOverviewComplete,
-  onIntroFocusComplete,
   overviewTarget,
   overviewPosition,
-  focusTarget
+  focusTarget,
+  tilePositions,
+  cinematicStage,
+  cinematicFocusId,
+  cinematicHoldRef,
+  onIntroComplete,
+  onCinematicFocusReached,
+  onCinematicHoldComplete,
+  onCinematicReturnComplete,
+  controlsLocked
 }: {
   tiles: CharacterTile[];
   cameraTilePosition: [number, number, number];
@@ -94,22 +113,40 @@ function SceneContents({
   introTileIds: string[];
   onIntroTileComplete: () => void;
   onIntroOverviewComplete: () => void;
-  onIntroFocusComplete: () => void;
   overviewTarget: [number, number, number];
   overviewPosition: [number, number, number];
   focusTarget: [number, number, number];
+  tilePositions: Map<string, THREE.Vector3>;
+  cinematicStage: CinematicStage;
+  cinematicFocusId: string | null;
+  cinematicHoldRef: MutableRefObject<number>;
+  onIntroComplete: () => void;
+  onCinematicFocusReached: () => void;
+  onCinematicHoldComplete: () => void;
+  onCinematicReturnComplete: () => void;
+  controlsLocked: boolean;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
-  const baseTargetRef = useRef(new THREE.Vector3(...CAMERA_TARGET));
+  const baseTargetRef = useRef(new THREE.Vector3(...INTRO_START_TARGET));
   const tiltOffsetRef = useRef(0);
   const overviewCompleteRef = useRef(false);
-  const focusCompleteRef = useRef(false);
+  const introCompleteRef = useRef(false);
   const tempTarget = useMemo(() => new THREE.Vector3(), []);
   const tempBase = useMemo(() => new THREE.Vector3(), []);
   const overviewPositionVector = useMemo(() => new THREE.Vector3(...overviewPosition), [overviewPosition]);
   const overviewTargetVector = useMemo(() => new THREE.Vector3(...overviewTarget), [overviewTarget]);
   const focusTargetVector = useMemo(() => new THREE.Vector3(...focusTarget), [focusTarget]);
+  const cinematicFocusTarget = useMemo(() => {
+    if (!cinematicFocusId) return null;
+    const position = tilePositions.get(cinematicFocusId);
+    if (!position) return null;
+    return position.clone().setY(position.y + TILE_TOP_OFFSET);
+  }, [cinematicFocusId, tilePositions]);
+  const cinematicFocusPosition = useMemo(() => {
+    if (!cinematicFocusTarget) return null;
+    return cinematicFocusTarget.clone().add(CINEMATIC_FOCUS_OFFSET);
+  }, [cinematicFocusTarget]);
 
   const baseOffset = useMemo(
     () =>
@@ -131,6 +168,14 @@ function SceneContents({
     tiltOffsetRef.current = 0;
     controlsRef.current?.update();
   }, [camera, focusPositionVector, focusTargetVector]);
+
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    controlsRef.current.enabled = !controlsLocked;
+    controlsRef.current.enableRotate = !controlsLocked;
+    controlsRef.current.enablePan = !controlsLocked;
+    controlsRef.current.enableZoom = !controlsLocked;
+  }, [controlsLocked]);
 
   return (
     <>
@@ -158,7 +203,7 @@ function SceneContents({
         ref={controlsRef}
         enableRotate={false}
         enablePan
-        target={CAMERA_TARGET}
+        target={INTRO_START_TARGET}
         mouseButtons={{
           LEFT: THREE.MOUSE.PAN,
           MIDDLE: THREE.MOUSE.DOLLY,
@@ -176,13 +221,20 @@ function SceneContents({
         tempBase={tempBase}
         introState={introState}
         overviewCompleteRef={overviewCompleteRef}
-        focusCompleteRef={focusCompleteRef}
         overviewPosition={overviewPositionVector}
         overviewTarget={overviewTargetVector}
         focusPosition={focusPositionVector}
         focusTarget={focusTargetVector}
+        cinematicStage={cinematicStage}
+        cinematicFocusPosition={cinematicFocusPosition}
+        cinematicFocusTarget={cinematicFocusTarget}
+        cinematicHoldRef={cinematicHoldRef}
         onIntroOverviewComplete={onIntroOverviewComplete}
-        onIntroFocusComplete={onIntroFocusComplete}
+        onIntroComplete={onIntroComplete}
+        onCinematicFocusReached={onCinematicFocusReached}
+        onCinematicHoldComplete={onCinematicHoldComplete}
+        onCinematicReturnComplete={onCinematicReturnComplete}
+        introCompleteRef={introCompleteRef}
       />
     </>
   );
@@ -197,13 +249,20 @@ function UpdateCamera({
   tempBase,
   introState,
   overviewCompleteRef,
-  focusCompleteRef,
   overviewPosition,
   overviewTarget,
   focusPosition,
   focusTarget,
+  cinematicStage,
+  cinematicFocusPosition,
+  cinematicFocusTarget,
+  cinematicHoldRef,
   onIntroOverviewComplete,
-  onIntroFocusComplete
+  onIntroComplete,
+  onCinematicFocusReached,
+  onCinematicHoldComplete,
+  onCinematicReturnComplete,
+  introCompleteRef
 }: {
   controlsRef: MutableRefObject<OrbitControlsImpl | null>;
   camera: THREE.Camera;
@@ -213,13 +272,20 @@ function UpdateCamera({
   tempBase: THREE.Vector3;
   introState: IntroStage;
   overviewCompleteRef: MutableRefObject<boolean>;
-  focusCompleteRef: MutableRefObject<boolean>;
   overviewPosition: THREE.Vector3;
   overviewTarget: THREE.Vector3;
   focusPosition: THREE.Vector3;
   focusTarget: THREE.Vector3;
+  cinematicStage: CinematicStage;
+  cinematicFocusPosition: THREE.Vector3 | null;
+  cinematicFocusTarget: THREE.Vector3 | null;
+  cinematicHoldRef: MutableRefObject<number>;
   onIntroOverviewComplete: () => void;
-  onIntroFocusComplete: () => void;
+  onIntroComplete: () => void;
+  onCinematicFocusReached: () => void;
+  onCinematicHoldComplete: () => void;
+  onCinematicReturnComplete: () => void;
+  introCompleteRef: MutableRefObject<boolean>;
 }) {
   useFrame((_, delta) => {
     const controls = controlsRef.current;
@@ -245,17 +311,35 @@ function UpdateCamera({
         overviewCompleteRef.current = true;
         onIntroOverviewComplete();
       }
-    } else if (introState === 'focusing') {
-      camera.position.lerp(focusPosition, 1 - Math.exp(-delta * 2));
-      baseTargetRef.current.lerp(focusTarget, 1 - Math.exp(-delta * 2));
+    } else if (introState === 'done' && !introCompleteRef.current) {
+      introCompleteRef.current = true;
+      onIntroComplete();
+    }
+
+    if (cinematicStage === 'focusing' && cinematicFocusPosition && cinematicFocusTarget) {
+      camera.position.lerp(cinematicFocusPosition, 1 - Math.exp(-delta * CINEMATIC_LERP_RATE));
+      baseTargetRef.current.lerp(cinematicFocusTarget, 1 - Math.exp(-delta * CINEMATIC_LERP_RATE));
 
       if (
-        !focusCompleteRef.current &&
-        camera.position.distanceTo(focusPosition) < FOCUS_LERP_THRESHOLD &&
-        baseTargetRef.current.distanceTo(focusTarget) < FOCUS_LERP_THRESHOLD
+        camera.position.distanceTo(cinematicFocusPosition) < FOCUS_LERP_THRESHOLD &&
+        baseTargetRef.current.distanceTo(cinematicFocusTarget) < FOCUS_LERP_THRESHOLD
       ) {
-        focusCompleteRef.current = true;
-        onIntroFocusComplete();
+        onCinematicFocusReached();
+      }
+    } else if (cinematicStage === 'holding') {
+      cinematicHoldRef.current -= delta;
+      if (cinematicHoldRef.current <= 0) {
+        onCinematicHoldComplete();
+      }
+    } else if (cinematicStage === 'returning') {
+      camera.position.lerp(INTRO_START_POSITION_VECTOR, 1 - Math.exp(-delta * CINEMATIC_RETURN_RATE));
+      baseTargetRef.current.lerp(INTRO_START_TARGET_VECTOR, 1 - Math.exp(-delta * CINEMATIC_RETURN_RATE));
+
+      if (
+        camera.position.distanceTo(INTRO_START_POSITION_VECTOR) < FOCUS_LERP_THRESHOLD &&
+        baseTargetRef.current.distanceTo(INTRO_START_TARGET_VECTOR) < FOCUS_LERP_THRESHOLD
+      ) {
+        onCinematicReturnComplete();
       }
     }
 
@@ -280,30 +364,47 @@ function UpdateCamera({
 export default function Board3D({ tiles }: Board3DProps) {
   const [introStage, setIntroStage] = useState<IntroStage>('idle');
   const [introDropCount, setIntroDropCount] = useState(0);
+  const lastEliminatedIds = useGameStore((state) => state.lastEliminatedIds);
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
 
-  const introTileIds = useMemo(
-    () => tiles.slice(0, MAX_INTRO_TILE_COUNT).map((tile) => tile.id),
-    [tiles]
-  );
+  const introTileIds = useMemo(() => {
+    const shuffled = [...tiles].sort(() => Math.random() - 0.5);
+    const introCount = Math.min(tiles.length, 2, MAX_INTRO_TILE_COUNT);
+    return shuffled.slice(0, introCount).map((tile) => tile.id);
+  }, [tiles]);
 
-  const overviewTargetY = (rows - 1) * STAIR_STEP * 0.5 + OVERVIEW_TARGET_Y_OFFSET;
-  const gridHalfDepth = ((rows - 1) / 2) * TILE_SPACING;
-  const overviewTarget: [number, number, number] = [0, overviewTargetY, 0];
-  const overviewPosition: [number, number, number] = [
-    0,
-    overviewTargetY + OVERVIEW_POSITION_Y_PADDING,
-    gridHalfDepth + CAMERA_TILE_FRONT_GAP + OVERVIEW_POSITION_Z_PADDING
-  ];
+  const tilePositions = useMemo(() => {
+    const map = new Map<string, THREE.Vector3>();
+    tiles.forEach((tile, index) => {
+      const row = Math.floor(index / TILE_COLUMNS);
+      const col = index % TILE_COLUMNS;
+      const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+      const z = ((rows - 1) / 2 - row) * TILE_SPACING;
+      const y = row * STAIR_STEP;
+      map.set(tile.id, new THREE.Vector3(x, y, z));
+    });
+    return map;
+  }, [rows, tiles]);
+
+  const [cinematicStage, setCinematicStage] = useState<CinematicStage>('idle');
+  const [cinematicIndex, setCinematicIndex] = useState(0);
+  const cinematicQueueRef = useRef<string[]>([]);
+  const cinematicHoldRef = useRef(0);
+
+  const cinematicFocusId = cinematicQueueRef.current[cinematicIndex] ?? null;
+  const controlsLocked = cinematicStage !== 'idle';
+
+  const overviewTarget: [number, number, number] = INTRO_START_TARGET;
+  const overviewPosition: [number, number, number] = CAMERA_POSITION;
 
   useEffect(() => {
-    if (introTileIds.length) {
+    if (introStage === 'idle' && introTileIds.length) {
       setIntroStage('dropping');
     }
-  }, [introTileIds.length]);
+  }, [introStage, introTileIds.length]);
 
   useEffect(() => {
     if (introStage === 'dropping' && introDropCount >= introTileIds.length) {
@@ -316,28 +417,75 @@ export default function Board3D({ tiles }: Board3DProps) {
   }, [introTileIds.length]);
 
   const handleIntroOverviewComplete = useCallback(() => {
-    setIntroStage('focusing');
-  }, []);
-
-  const handleIntroFocusComplete = useCallback(() => {
     setIntroStage('done');
   }, []);
 
+  const handleIntroComplete = useCallback(() => {
+    setIntroStage((prev) => (prev === 'done' ? prev : 'done'));
+  }, []);
+
+  useEffect(() => {
+    if (!lastEliminatedIds.length) return;
+    const sorted = [...lastEliminatedIds].sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true })
+    );
+    cinematicQueueRef.current = sorted;
+    setCinematicIndex(0);
+    setCinematicStage(sorted.length ? 'focusing' : 'idle');
+  }, [lastEliminatedIds]);
+
+  const handleCinematicFocusReached = useCallback(() => {
+    cinematicHoldRef.current = CINEMATIC_HOLD_DURATION;
+    setCinematicStage('holding');
+  }, []);
+
+  const handleCinematicHoldComplete = useCallback(() => {
+    setCinematicIndex((index) => {
+      const nextIndex = index + 1;
+      if (nextIndex < cinematicQueueRef.current.length) {
+        setCinematicStage('focusing');
+        return nextIndex;
+      }
+      setCinematicStage('returning');
+      return index;
+    });
+  }, []);
+
+  const handleCinematicReturnComplete = useCallback(() => {
+    cinematicQueueRef.current = [];
+    setCinematicIndex(0);
+    setCinematicStage('idle');
+  }, []);
+
+  useEffect(() => {
+    if (cinematicStage === 'focusing' && !cinematicFocusId) {
+      setCinematicStage('idle');
+    }
+  }, [cinematicFocusId, cinematicStage]);
+
   return (
     <div className="board3d">
-      <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
+      <Canvas camera={{ position: INTRO_START_POSITION, fov: 42 }} shadows>
         <SceneContents
           tiles={tiles}
           cameraTilePosition={cameraTilePosition}
-          introState={introStage}
-          introTileIds={introTileIds}
-          onIntroTileComplete={handleTileDropComplete}
-          onIntroOverviewComplete={handleIntroOverviewComplete}
-          onIntroFocusComplete={handleIntroFocusComplete}
-          overviewTarget={overviewTarget}
-          overviewPosition={overviewPosition}
-          focusTarget={cameraTilePosition}
-        />
+        introState={introStage}
+        introTileIds={introTileIds}
+        onIntroTileComplete={handleTileDropComplete}
+        onIntroOverviewComplete={handleIntroOverviewComplete}
+        overviewTarget={overviewTarget}
+        overviewPosition={overviewPosition}
+        focusTarget={cameraTilePosition}
+        tilePositions={tilePositions}
+        cinematicStage={cinematicStage}
+        cinematicFocusId={cinematicFocusId}
+        cinematicHoldRef={cinematicHoldRef}
+        onIntroComplete={handleIntroComplete}
+        onCinematicFocusReached={handleCinematicFocusReached}
+        onCinematicHoldComplete={handleCinematicHoldComplete}
+        onCinematicReturnComplete={handleCinematicReturnComplete}
+        controlsLocked={controlsLocked}
+      />
       </Canvas>
     </div>
   );

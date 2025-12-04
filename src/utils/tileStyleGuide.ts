@@ -19,7 +19,7 @@ export const TILE_COLOR_GUIDE: Record<TileVisualState, TileStyle> = {
   eliminated: {
     baseColor: '#233a63',
     accentColor: '#2e4a89',
-    opacity: 0.35,
+    opacity: 0.6,
     borderRadius: 0.16
   }
 };
