@@ -206,7 +206,7 @@ function UpdateCamera({
     );
     baseTargetRef.current.lerp(tempBase, 1 - Math.exp(-delta * 6));
 
-    if (introState === 'zooming' || introState === 'done') {
+    if (introState === 'zooming') {
       camera.position.lerp(zoomPosition, 1 - Math.exp(-delta * 1.8));
       baseTargetRef.current.lerp(zoomTarget, 1 - Math.exp(-delta * 1.8));
 
