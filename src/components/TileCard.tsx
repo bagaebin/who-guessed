@@ -15,20 +15,24 @@ type TileCardProps = {
     initialHeight?: number;
     onComplete?: () => void;
   };
+  eliminationFocus?: boolean;
 };
 
 const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
+const ELIMINATION_ROTATION = -(Math.PI / 2 + 0.35);
+const ELIMINATION_DROP = -0.32;
 
-export default function TileCard({ tile, position, introAnimation }: TileCardProps) {
+export default function TileCard({ tile, position, introAnimation, eliminationFocus }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
   const introEnabled = Boolean(introAnimation?.isActive);
+  const eliminationActive = tile.isEliminated;
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
-    rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
+    rotationX: eliminationActive ? ELIMINATION_ROTATION : -0.2,
     baseColor: style.baseColor,
-    opacity: style.opacity,
-    yOffset: tile.isEliminated ? -0.25 : 0,
+    opacity: eliminationActive ? style.opacity * 0.6 : style.opacity,
+    yOffset: eliminationActive ? ELIMINATION_DROP : 0,
     dropOffset: 0,
     introOpacity: 1,
     from: introEnabled
@@ -36,10 +40,21 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
           dropOffset: introAnimation?.initialHeight ?? 4.5,
           introOpacity: 0
         }
-      : undefined,
+      : eliminationActive && eliminationFocus
+        ? {
+            rotationX: -0.18,
+            opacity: style.opacity,
+            yOffset: 0,
+            introOpacity: 1
+          }
+        : undefined,
     delay: introEnabled ? introAnimation?.delayMs ?? 0 : 0,
-    config: { mass: 1.1, tension: 180, friction: 18 },
-    reset: introEnabled,
+    config: {
+      mass: 1.1,
+      tension: eliminationActive ? 200 : 180,
+      friction: eliminationActive && eliminationFocus ? 16 : 18
+    },
+    reset: introEnabled || (eliminationActive && eliminationFocus),
     onRest: (result) => {
       if (
         introEnabled &&
