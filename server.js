@@ -11,92 +11,334 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+/**
+ * 프론트 zod 스키마와 동일한 enum 목록
+ */
+const allowed = {
+  gender: ["male", "female", "non_binary", "transgender"],
+  race: [
+    "east_asian",
+    "southeast_asian",
+    "south_asian",
+    "black",
+    "white",
+    "latinx",
+    "middle_eastern",
+    "indigenous",
+    "pacific_islander",
+    "mixed",
+  ],
+  ageGroup: ["child", "teen", "young_adult", "adult", "older_adult"],
+  skinTone: ["very_light", "light", "medium", "tan", "deep"],
+  bodyShape: ["very_slim", "slim", "average", "slightly_chubby", "chubby"],
+  skinCondition: [
+    "clear",
+    "some_acne",
+    "noticeable_acne",
+    "freckles_or_spots",
+    "sensitive_or_red",
+  ],
+  hairLength: ["bald_or_shaved", "short", "medium", "long"],
+  hairStyle: ["straight", "wavy", "curly", "coily", "buzz"],
+  hairColor: ["black", "dark_brown", "light_brown", "blonde", "red", "gray", "dyed_color"],
+  glasses: ["none", "round", "square", "other"],
+  facialHair: ["none", "stubble", "mustache", "beard"],
+  faceShape: ["round", "oval", "square", "long"],
+  expressionBaseline: [
+    "neutral",
+    "subtle_smile",
+    "big_smile",
+    "serious",
+    "tired",
+    "shy",
+    "confident",
+  ],
+  styleVibe: [
+    "casual",
+    "sporty",
+    "formal",
+    "artsy",
+    "geeky",
+    "punk_or_goth",
+    "street",
+    "minimal",
+    "colorful",
+  ],
+  makeupLevel: ["none", "light", "noticeable", "bold"],
+  accessoriesPresence: ["none", "ear", "head", "neck"],
+};
+
+/**
+ * profile 전체가 enum 규칙을 지키는지 검사
+ * 유효하지 않은 필드 목록을 반환
+ */
+function validateProfile(profile = {}) {
+  const invalid = [];
+
+  for (const field of Object.keys(allowed)) {
+    const options = allowed[field];
+    const value = profile[field];
+    if (typeof value !== "string" || !options.includes(value)) {
+      invalid.push({ field, value, expected: options });
+    }
+  }
+
+  return invalid;
+}
+
+/**
+ * enum 밖의 값을 seedCore 또는 안전한 기본값으로 정규화
+ */
+function normalizeEnum(field, value, seedCore, fallback) {
+  const options = allowed[field];
+  if (!options) return fallback;
+  if (typeof value === "string" && options.includes(value)) return value;
+
+  // 1순위: seedCore 값
+  const seedVal = seedCore?.[field];
+  if (typeof seedVal === "string" && options.includes(seedVal)) return seedVal;
+
+  // 2순위: 미리 정한 기본값
+  if (options.includes(fallback)) return fallback;
+
+  // 마지막: 첫 번째 옵션
+  return options[0];
+}
+
+/**
+ * LLM 응답 + seedTile.core 를 합쳐 최종 profile 생성
+ */
+function buildNormalizedProfile(rawProfile = {}, seedCore = {}) {
+  return {
+    gender: normalizeEnum("gender", rawProfile.gender, seedCore, "non_binary"),
+    race: normalizeEnum("race", rawProfile.race, seedCore, "mixed"),
+    ageGroup: normalizeEnum("ageGroup", rawProfile.ageGroup, seedCore, "adult"),
+    skinTone: normalizeEnum("skinTone", rawProfile.skinTone, seedCore, "medium"),
+    bodyShape: normalizeEnum("bodyShape", rawProfile.bodyShape, seedCore, "average"),
+    skinCondition: normalizeEnum(
+      "skinCondition",
+      rawProfile.skinCondition,
+      seedCore,
+      "clear"
+    ),
+    hairLength: normalizeEnum("hairLength", rawProfile.hairLength, seedCore, "medium"),
+    hairStyle: normalizeEnum("hairStyle", rawProfile.hairStyle, seedCore, "straight"),
+    hairColor: normalizeEnum("hairColor", rawProfile.hairColor, seedCore, "black"),
+    glasses: normalizeEnum("glasses", rawProfile.glasses, seedCore, "none"),
+    facialHair: normalizeEnum("facialHair", rawProfile.facialHair, seedCore, "none"),
+    faceShape: normalizeEnum("faceShape", rawProfile.faceShape, seedCore, "oval"),
+    expressionBaseline: normalizeEnum(
+      "expressionBaseline",
+      rawProfile.expressionBaseline,
+      seedCore,
+      "neutral"
+    ),
+    styleVibe: normalizeEnum("styleVibe", rawProfile.styleVibe, seedCore, "casual"),
+    makeupLevel: normalizeEnum("makeupLevel", rawProfile.makeupLevel, seedCore, "none"),
+    accessoriesPresence: normalizeEnum(
+      "accessoriesPresence",
+      rawProfile.accessoriesPresence,
+      seedCore,
+      "none"
+    ),
+  };
+}
+
+/**
+ * LLM에 한 번 요청
+ * extraInvalid가 있으면 "지난 응답에서 어떤 필드가 잘못됐는지"를 피드백으로 함께 보냄
+ */
+async function requestProfileOnce({
+  playerText,
+  remainingTiles,
+  phase,
+  seedCore,
+  extraInvalid,
+}) {
+  const systemPrompt = `
+You are an assistant for a guessing game.
+You infer the player's appearance profile based on their self description and remaining character tiles.
+
+You MUST return a JSON object with EXACTLY this shape and ONLY these fields:
+
+{
+  "profile": {
+    "gender": "male|female|non_binary|transgender",
+    "race": "east_asian|southeast_asian|south_asian|black|white|latinx|middle_eastern|indigenous|pacific_islander|mixed",
+    "ageGroup": "child|teen|young_adult|adult|older_adult",
+    "skinTone": "very_light|light|medium|tan|deep",
+    "bodyShape": "very_slim|slim|average|slightly_chubby|chubby",
+    "skinCondition": "clear|some_acne|noticeable_acne|freckles_or_spots|sensitive_or_red",
+    "hairLength": "bald_or_shaved|short|medium|long",
+    "hairStyle": "straight|wavy|curly|coily|buzz",
+    "hairColor": "black|dark_brown|light_brown|blonde|red|gray|dyed_color",
+    "glasses": "none|round|square|other",
+    "facialHair": "none|stubble|mustache|beard",
+    "faceShape": "round|oval|square|long",
+    "expressionBaseline": "neutral|subtle_smile|big_smile|serious|tired|shy|confident",
+    "styleVibe": "casual|sporty|formal|artsy|geeky|punk_or_goth|street|minimal|colorful",
+    "makeupLevel": "none|light|noticeable|bold",
+    "accessoriesPresence": "none|ear|head|neck"
+  },
+  "eliminatedIds": ["id1", "id2", "..."],
+  "reasoning": {
+    "summary": "short explanation in Korean or English"
+  }
+}
+
+IMPORTANT RULES:
+- For EVERY field in "profile", you MUST choose EXACTLY ONE value from the allowed list.
+- NEVER use values like "any", "unknown", "none_of_the_above", "other_than_these".
+- If the player's description does not specify a field, choose the closest reasonable option
+  OR copy the corresponding value from the seed reference character in the instructions.
+- Even if the player's description does NOT mention appearance, you MUST still infer a plausible profile by using linguistic cues, context, tone, or by falling back to the seed reference character where reasonable. Never return vague values; always choose one concrete enum value per field.
+- Do not add extra fields.
+- Do not wrap the JSON in backticks or markdown.
+`.trim();
+
+  const baseUserPrompt = `
+Player free-text description (Korean or English):
+${playerText}
+
+Remaining character tiles (for reference):
+${JSON.stringify(remainingTiles, null, 2)}
+
+Seed reference character core:
+${JSON.stringify(seedCore, null, 2)}
+
+Current phase: ${phase}
+`.trim();
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: baseUserPrompt },
+  ];
+
+  if (extraInvalid && extraInvalid.length > 0) {
+    const feedbackText =
+      "Your previous answer used invalid values for these fields:\n" +
+      extraInvalid
+        .map(
+          (i) =>
+            `- ${i.field}: received '${i.value}', expected one of [${i.expected.join(
+              ", "
+            )}]`
+        )
+        .join("\n") +
+      "\n\nPlease answer again with a NEW JSON object that strictly follows the allowed values.";
+    messages.push({
+      role: "user",
+      content: feedbackText,
+    });
+  }
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4.1-mini",
+    messages,
+    temperature: 0.6,
+  });
+
+  const content = completion.choices[0]?.message?.content ?? "{}";
+
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (e) {
+    console.warn("⚠ LLM 응답 JSON.parse 실패:", e, "\ncontent:", content);
+    return { parsed: null, invalid: [{ field: "json", value: content, expected: ["valid JSON"] }] };
+  }
+
+  const profile = parsed?.profile ?? {};
+  const invalid = validateProfile(profile);
+
+  return { parsed, invalid };
+}
+
+/**
+ * LLM 재시도 래퍼
+ * - 첫 시도에서 invalid면, 무엇이 잘못됐는지 피드백을 주고 다시 요청
+ * - maxRetries 회수 동안 유효한 profile을 얻으려고 시도
+ */
+async function requestProfileWithRetry(params, maxRetries = 2) {
+  let lastParsed = null;
+  let lastInvalid = [];
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { parsed, invalid } = await requestProfileOnce({
+      ...params,
+      extraInvalid: attempt === 0 ? null : lastInvalid,
+    });
+
+    lastParsed = parsed;
+    lastInvalid = invalid;
+
+    if (!invalid.length && parsed) {
+      console.log(`✅ LLM profile valid at attempt ${attempt + 1}`);
+      return parsed;
+    }
+
+    console.warn(
+      `⚠ LLM profile invalid at attempt ${attempt + 1}:`,
+      invalid.map((i) => ({
+        field: i.field,
+        value: i.value,
+        expected: i.expected,
+      }))
+    );
+  }
+
+  console.warn("⚠ LLM profile invalid after all retries, fallback to normalization");
+  return lastParsed;
+}
+
 // appearanceClient.ts 에서 부르는 엔드포인트와 매칭
 app.post("/api/appearance", async (req, res) => {
   try {
     const { playerText, remainingTiles, phase } = req.body;
 
-    // ✅ 최소 동작: 남은 타일 중 첫 번째를 프로필로 쓰기 (지금 mock과 유사)
-    //   나중에 여기만 진짜 LLM 호출 로직으로 갈아끼우면 됩니다.
+    if (!Array.isArray(remainingTiles) || remainingTiles.length === 0) {
+      return res.status(400).json({ error: "remainingTiles is empty" });
+    }
+
     const seedTile = remainingTiles[0];
+    const seedCore = seedTile.core ?? {};
 
-    // ——— 여기부터는 실제 OpenAI 호출을 하는 예시 ———
-    const systemPrompt = `
-You are a game assistant that infers a player's appearance profile for a guessing game.
-Return ONLY a JSON object with the following shape:
+    // 1) LLM에 프로필 요청 (재시도 포함)
+    const parsed = await requestProfileWithRetry(
+      { playerText, remainingTiles, phase, seedCore },
+      2 // 재시도 2번 (총 3회 시도)
+    );
 
-{
-  "profile": {
-    "gender": "...",
-    "race": "...",
-    "ageGroup": "...",
-    "skinTone": "...",
-    "bodyShape": "...",
-    "skinCondition": "...",
-    "hairLength": "...",
-    "hairStyle": "...",
-    "hairColor": "...",
-    "glasses": "...",
-    "facialHair": "...",
-    "faceShape": "...",
-    "expressionBaseline": "...",
-    "styleVibe": "...",
-    "makeupLevel": "...",
-    "accessoriesPresence": "..."
-  },
-  "eliminatedIds": ["...", "..."],
-  "reasoning": {
-    "summary": "..."
-  }
-}
+    // 2) rawProfile + seedCore 를 이용해 최종 profile 정규화
+    const rawProfile = parsed?.profile || {};
+    const normalizedProfile = buildNormalizedProfile(rawProfile, seedCore);
 
-All enum values must be one of the allowed options given by the game.
-No extra fields, no explanations outside JSON.
-    `;
+    let eliminatedIds = Array.isArray(parsed?.eliminatedIds) ? parsed.eliminatedIds : [];
+    eliminatedIds = eliminatedIds.filter((id) => typeof id === "string");
 
-    const userPrompt = `
-Player description (Korean or English):
-${playerText}
+    const reasoning =
+      parsed?.reasoning && typeof parsed.reasoning === "object"
+        ? parsed.reasoning
+        : { summary: "LLM 추론 결과를 seedTile 정보와 조합해 정규화했습니다." };
 
-Remaining character tiles:
-${JSON.stringify(remainingTiles, null, 2)}
-
-Current phase: ${phase}
-    `;
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.7,
+    return res.json({
+      profile: normalizedProfile,
+      eliminatedIds,
+      reasoning,
     });
-
-    const content = completion.choices[0]?.message?.content ?? "{}";
-
-    let parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      // 모델이 이상하게 답하면 fallback
-      parsed = {
-        profile: seedTile.core,
-        eliminatedIds: [],
-        reasoning: { fallback: "LLM 응답 파싱 실패, seedTile 사용" },
-      };
-    }
-    if (!parsed || typeof parsed !== "object") {
-      parsed = {};
-    }
-    const profile = { ...seedTile.core, ...(parsed.profile ?? {}) };
-    const eliminatedIds = parsed.eliminatedIds ?? [];
-    const reasoning = parsed.reasoning ?? { fallback: "LLM 응답 기본값 사용" };
-
-    res.json({ profile, eliminatedIds, reasoning });
   } catch (error) {
-    console.error("OpenAI error:", error);
-    res.status(500).json({ error: "OpenAI request failed" });
+    console.error("🔥 /api/appearance OpenAI error:", error);
+    // 완전 fallback (seedTile 기반)
+    const { remainingTiles = [] } = req.body;
+    const seedTile = Array.isArray(remainingTiles) && remainingTiles[0] ? remainingTiles[0] : {};
+    const seedCore = seedTile.core ?? {};
+    const fallbackProfile = buildNormalizedProfile({}, seedCore);
+
+    return res.status(200).json({
+      profile: fallbackProfile,
+      eliminatedIds: [],
+      reasoning: { fallback: "OpenAI 오류 발생. 시드 타일 기반 fallback 사용." },
+    });
   }
 });
 
