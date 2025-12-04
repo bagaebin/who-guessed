@@ -18,12 +18,15 @@ function FinalReveal() {
 }
 
 export default function App() {
-  const tiles = useGameStore((state) => state.tiles);
+  const { tiles, lastEliminatedIds } = useGameStore((state) => ({
+    tiles: state.tiles,
+    lastEliminatedIds: state.lastEliminatedIds
+  }));
 
   return (
     <div className="app">
       <div className="left">
-        <Board3D tiles={tiles} />
+        <Board3D tiles={tiles} lastEliminatedIds={lastEliminatedIds} />
       </div>
       <div className="right">
         <UiPanel />
