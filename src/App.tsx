@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Board3D from './components/Board3D';
 import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
@@ -19,13 +20,31 @@ function FinalReveal() {
 
 export default function App() {
   const tiles = useGameStore((state) => state.tiles);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = (event: KeyboardEvent) => {
+      if (event.key === 'Alt') {
+        setIsAdminOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleToggle);
+    return () => window.removeEventListener('keydown', handleToggle);
+  }, []);
 
   return (
     <div className="app">
       <div className="left">
         <Board3D tiles={tiles} />
       </div>
-      <div className="right">
+      <div className={`admin-panel ${isAdminOpen ? 'admin-panel--open' : ''}`}>
+        <div className="admin-panel__header">
+          <p>옵션 키로 관리자 모드 전환</p>
+          <button className="ghost" onClick={() => setIsAdminOpen(false)}>
+            닫기
+          </button>
+        </div>
         <UiPanel />
         <FinalReveal />
       </div>
