@@ -37,10 +37,10 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight]);
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
-    rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
+    rotationX: tile.isEliminated ? -Math.PI / 2 : -0.2,
     baseColor: style.baseColor,
     opacity: style.opacity,
-    yOffset: tile.isEliminated ? -0.25 : 0,
+    yOffset: tile.isEliminated ? -0.32 : 0,
     dropOffset: 0,
     introOpacity: 1,
     from: shouldStartIntro
