@@ -153,9 +153,9 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
   }, [focusCamera, setPlayerText]);
 
   const bubbleDistanceFactor = useMemo(() => {
-    const baseDistanceFactor = 3.2;
+    const baseDistanceFactor = 3.8;
     const widthScale = size.width / 1280;
-    const clampedScale = THREE.MathUtils.clamp(widthScale, 0.9, 1.35);
+    const clampedScale = THREE.MathUtils.clamp(widthScale, 1.05, 1.55);
     return baseDistanceFactor * clampedScale;
   }, [size.width]);
 
@@ -217,6 +217,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
       <Html
         position={[0, -TILE_SIZE.height / 2 - 0.6, TILE_SIZE.depth / 2]}
         distanceFactor={bubbleDistanceFactor}
+        transform
         center
       >
         <form className="camera-bubble" onSubmit={handleBubbleSubmit}>
