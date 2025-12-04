@@ -2,7 +2,7 @@ import { to } from '@react-spring/core';
 import { useSpring, a } from '@react-spring/three';
 import { RoundedBox, useTexture } from '@react-three/drei';
 import { MeshProps } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { CharacterTile } from '../types/appearance';
 import { getTileStyle } from '../utils/tileStyleGuide';
 
@@ -22,7 +22,15 @@ const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 export default function TileCard({ tile, position, introAnimation }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
+  const introStartedRef = useRef(false);
   const introEnabled = Boolean(introAnimation?.isActive);
+  const shouldStartIntro = introEnabled && !introStartedRef.current;
+
+  useEffect(() => {
+    if (introEnabled && !introStartedRef.current) {
+      introStartedRef.current = true;
+    }
+  }, [introEnabled]);
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
     rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
@@ -31,15 +39,15 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
     yOffset: tile.isEliminated ? -0.25 : 0,
     dropOffset: 0,
     introOpacity: 1,
-    from: introEnabled
+    from: shouldStartIntro
       ? {
           dropOffset: introAnimation?.initialHeight ?? 4.5,
           introOpacity: 0
         }
       : undefined,
-    delay: introEnabled ? introAnimation?.delayMs ?? 0 : 0,
+    delay: shouldStartIntro ? introAnimation?.delayMs ?? 0 : 0,
     config: { mass: 1.1, tension: 180, friction: 18 },
-    reset: introEnabled,
+    reset: shouldStartIntro,
     onRest: (result) => {
       if (
         introEnabled &&
