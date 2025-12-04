@@ -22,7 +22,9 @@ const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 export default function TileCard({ tile, position, introAnimation }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
+  const introStartedRef = useRef(false);
   const introEnabled = Boolean(introAnimation?.isActive);
+  const introShouldReset = introEnabled && !introStartedRef.current && !introCompleteRef.current;
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
     rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
@@ -39,7 +41,12 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
       : undefined,
     delay: introEnabled ? introAnimation?.delayMs ?? 0 : 0,
     config: { mass: 1.1, tension: 180, friction: 18 },
-    reset: introEnabled,
+    reset: introShouldReset,
+    onStart: () => {
+      if (introEnabled) {
+        introStartedRef.current = true;
+      }
+    },
     onRest: (result) => {
       if (
         introEnabled &&
