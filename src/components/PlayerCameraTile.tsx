@@ -189,16 +189,6 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
         )}
       </mesh>
 
-      <mesh position={[0, TILE_SIZE.height / 2 + 0.12, 0]}>
-        <boxGeometry args={[TILE_SIZE.width * 0.8, 0.08, 0.08]} />
-        <meshStandardMaterial
-          color={tileStyle.accentColor}
-          emissive={tileStyle.accentColor}
-          emissiveIntensity={0.6}
-          roughness={0.5}
-        />
-      </mesh>
-
       {error && (
         <Text
           position={[0, -TILE_SIZE.height / 2 - 0.35, 0]}
