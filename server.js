@@ -144,6 +144,42 @@ function buildNormalizedProfile(rawProfile = {}, seedCore = {}) {
   };
 }
 
+function validateStrength(profile = {}, seedCore = {}, eliminatedIds = [], remainingTiles = [], playerText = "") {
+  const issues = [];
+  const fields = Object.keys(allowed);
+
+  // 플레이어가 뭔가를 적었고 타일이 남아 있을 때, 프로필이 시드와 완전히 동일하면 너무 소극적인 응답으로 간주
+  const trimmed = (playerText || "").trim();
+  if (trimmed.length > 0 && Array.isArray(remainingTiles) && remainingTiles.length > 0) {
+    const sameCount = fields.filter(
+      (f) =>
+        typeof profile[f] === "string" &&
+        seedCore &&
+        typeof seedCore[f] === "string" &&
+        profile[f] === seedCore[f]
+    ).length;
+
+    if (sameCount === fields.length) {
+      issues.push({
+        field: "__profile_similarity",
+        value: "too_close_to_seed",
+        expected: "at_least_some_fields_differ_from_seed_when_player_provides_text",
+      });
+    }
+  }
+
+  // 타일이 두 개 이상 남았는데 제거된 타일이 하나도 없으면 너무 소극적인 응답으로 간주
+  if (Array.isArray(remainingTiles) && remainingTiles.length > 1 && eliminatedIds.length === 0) {
+    issues.push({
+      field: "eliminatedIds",
+      value: "none",
+      expected: "at_least_one_eliminated_tile_when_more_than_one_remains",
+    });
+  }
+
+  return issues;
+}
+
 /**
  * LLM에 한 번 요청
  * extraInvalid가 있으면 "지난 응답에서 어떤 필드가 잘못됐는지"를 피드백으로 함께 보냄
@@ -192,6 +228,9 @@ IMPORTANT RULES:
 - If the player's description does not specify a field, choose the closest reasonable option
   OR copy the corresponding value from the seed reference character in the instructions.
 - Even if the player's description does NOT mention appearance, you MUST still infer a plausible profile by using linguistic cues, context, tone, or by falling back to the seed reference character where reasonable. Never return vague values; always choose one concrete enum value per field.
+- You MUST NOT say that there is "not enough information" to infer appearance traits. You must always commit to a concrete guess for every field.
+- You MUST NOT simply copy the entire profile of the seed reference character unless the player's description explicitly states that they look exactly like that character.
+- When more than one tile remains, you MUST always eliminate at least one tile. Even with minimal information, choose the least compatible characters and briefly justify it in "reasoning.summary".
 - Do not add extra fields.
 - Do not wrap the JSON in backticks or markdown.
 `.trim();
@@ -249,7 +288,19 @@ Current phase: ${phase}
   }
 
   const profile = parsed?.profile ?? {};
-  const invalid = validateProfile(profile);
+  const eliminatedIdsRaw = Array.isArray(parsed?.eliminatedIds) ? parsed.eliminatedIds : [];
+  const eliminatedIds = eliminatedIdsRaw.filter((id) => typeof id === "string");
+
+  const enumInvalid = validateProfile(profile);
+  const strengthInvalid = validateStrength(
+    profile,
+    seedCore,
+    eliminatedIds,
+    remainingTiles,
+    playerText
+  );
+
+  const invalid = [...enumInvalid, ...strengthInvalid];
 
   return { parsed, invalid };
 }
@@ -315,6 +366,16 @@ app.post("/api/appearance", async (req, res) => {
 
     let eliminatedIds = Array.isArray(parsed?.eliminatedIds) ? parsed.eliminatedIds : [];
     eliminatedIds = eliminatedIds.filter((id) => typeof id === "string");
+
+    // 최소 1개는 제거되도록 강제 (남은 타일이 2개 이상일 때)
+    if (Array.isArray(remainingTiles) && remainingTiles.length > 1 && eliminatedIds.length === 0) {
+      const allIds = remainingTiles.map((t) => t.id);
+      const candidateIds = allIds.slice(1); // 시드 타일은 남겨두고 나머지 중에서 제거
+      if (candidateIds.length > 0) {
+        const rand = candidateIds[Math.floor(Math.random() * candidateIds.length)];
+        eliminatedIds = [rand];
+      }
+    }
 
     const reasoning =
       parsed?.reasoning && typeof parsed.reasoning === "object"
