@@ -42,13 +42,14 @@ const AUTO_TILT_SLOPE = 0.08;
 const AUTO_TILT_MAX = 1.1;
 const ELIMINATION_FOCUS_OFFSET: [number, number, number] = [0, 1.4, 4.4];
 const ELIMINATION_LERP = 2.6;
-const ELIMINATION_FOCUS_HOLD = 900;
+const ELIMINATION_FOCUS_HOLD = 500;
 const WIDE_LERP = 1.9;
 
 function TileGrid({
   tiles,
   introState,
-  focusedEliminationId
+  focusedEliminationId,
+  fallenIds
 }: {
   tiles: CharacterTile[];
   introState?: {
@@ -57,6 +58,7 @@ function TileGrid({
     onTileDropComplete: () => void;
   };
   focusedEliminationId?: string | null;
+  fallenIds: Set<string>;
 }) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const introTileIndexMap = useMemo(() => {
@@ -90,6 +92,7 @@ function TileGrid({
             position={[x, y, z]}
             introAnimation={introAnimation}
             eliminationFocus={tile.id === focusedEliminationId}
+            hasFallen={fallenIds.has(tile.id)}
           />
         );
       })}
@@ -106,7 +109,8 @@ function SceneContents({
   onIntroZoomComplete,
   cameraScript,
   isCinematic,
-  focusedEliminationId
+  focusedEliminationId,
+  fallenIds
 }: {
   tiles: CharacterTile[];
   cameraTilePosition: [number, number, number];
@@ -117,6 +121,7 @@ function SceneContents({
   cameraScript?: CameraScript | null;
   isCinematic: boolean;
   focusedEliminationId?: string | null;
+  fallenIds: Set<string>;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
@@ -168,6 +173,7 @@ function SceneContents({
           onTileDropComplete: onIntroTileComplete
         }}
         focusedEliminationId={focusedEliminationId}
+        fallenIds={fallenIds}
       />
       <ContactShadows
         position={[0, -0.8, 0]}
@@ -295,11 +301,12 @@ function UpdateCamera({
 }
 
 export default function Board3D({ tiles, lastEliminatedIds }: Board3DProps) {
-  const [introStage, setIntroStage] = useState<IntroStage>('idle');
+  const [introStage, setIntroStage] = useState<IntroStage>('dropping');
   const [introDropCount, setIntroDropCount] = useState(0);
   const [eliminationStage, setEliminationStage] = useState<EliminationStage>('idle');
   const [focusIndex, setFocusIndex] = useState(0);
   const [focusedEliminationId, setFocusedEliminationId] = useState<string | null>(null);
+  const [fallenIds, setFallenIds] = useState<Set<string>>(new Set());
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
@@ -322,9 +329,21 @@ export default function Board3D({ tiles, lastEliminatedIds }: Board3DProps) {
     );
   }, [tiles]);
 
+  const eliminationQueue = useMemo(() => {
+    return [...lastEliminatedIds].sort((a, b) => {
+      const aNum = Number.parseInt(a, 10);
+      const bNum = Number.parseInt(b, 10);
+      if (Number.isFinite(aNum) && Number.isFinite(bNum) && aNum !== bNum) {
+        return aNum - bNum;
+      }
+      return a.localeCompare(b);
+    });
+  }, [lastEliminatedIds]);
+
   useEffect(() => {
     if (introTileIds.length) {
       setIntroStage('dropping');
+      setIntroDropCount(0);
     }
   }, [introTileIds.length]);
 
@@ -335,11 +354,12 @@ export default function Board3D({ tiles, lastEliminatedIds }: Board3DProps) {
   }, [introStage, introDropCount, introTileIds.length]);
 
   useEffect(() => {
-    if (introStage !== 'done' || !lastEliminatedIds.length) return;
+    if (introStage !== 'done' || !eliminationQueue.length) return;
     setEliminationStage('focusing');
     setFocusIndex(0);
-    setFocusedEliminationId(lastEliminatedIds[0] ?? null);
-  }, [introStage, lastEliminatedIds]);
+    setFocusedEliminationId(eliminationQueue[0] ?? null);
+    setFallenIds(new Set());
+  }, [introStage, eliminationQueue]);
 
   useEffect(() => () => holdTimerRef.current && clearTimeout(holdTimerRef.current), []);
 
@@ -360,17 +380,24 @@ export default function Board3D({ tiles, lastEliminatedIds }: Board3DProps) {
 
   const handleFocusArrive = useCallback(() => {
     if (eliminationStage !== 'focusing') return;
+    setFallenIds((prev) => {
+      const next = new Set(prev);
+      if (focusedEliminationId) {
+        next.add(focusedEliminationId);
+      }
+      return next;
+    });
     setEliminationStage('holding');
     holdTimerRef.current = setTimeout(() => {
       setFocusIndex((index) => {
         const nextIndex = index + 1;
-        const hasMore = nextIndex < lastEliminatedIds.length;
-        setFocusedEliminationId(hasMore ? lastEliminatedIds[nextIndex] ?? null : null);
+        const hasMore = nextIndex < eliminationQueue.length;
+        setFocusedEliminationId(hasMore ? eliminationQueue[nextIndex] ?? null : null);
         setEliminationStage(hasMore ? 'focusing' : 'outro');
         return nextIndex;
       });
     }, ELIMINATION_FOCUS_HOLD);
-  }, [eliminationStage, lastEliminatedIds]);
+  }, [eliminationStage, eliminationQueue, focusedEliminationId]);
 
   const handleWideArrive = useCallback(() => {
     setEliminationStage('idle');
@@ -424,6 +451,7 @@ export default function Board3D({ tiles, lastEliminatedIds }: Board3DProps) {
           cameraScript={cameraScript}
           isCinematic={isCinematic}
           focusedEliminationId={focusedEliminationId}
+          fallenIds={fallenIds}
         />
       </Canvas>
     </div>

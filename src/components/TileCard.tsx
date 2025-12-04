@@ -16,17 +16,18 @@ type TileCardProps = {
     onComplete?: () => void;
   };
   eliminationFocus?: boolean;
+  hasFallen?: boolean;
 };
 
 const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 const ELIMINATION_ROTATION = -(Math.PI / 2 + 0.35);
 const ELIMINATION_DROP = -0.32;
 
-export default function TileCard({ tile, position, introAnimation, eliminationFocus }: TileCardProps) {
+export default function TileCard({ tile, position, introAnimation, eliminationFocus, hasFallen }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
   const introEnabled = Boolean(introAnimation?.isActive);
-  const eliminationActive = tile.isEliminated;
+  const eliminationActive = tile.isEliminated && hasFallen;
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
     rotationX: eliminationActive ? ELIMINATION_ROTATION : -0.2,
@@ -40,21 +41,14 @@ export default function TileCard({ tile, position, introAnimation, eliminationFo
           dropOffset: introAnimation?.initialHeight ?? 4.5,
           introOpacity: 0
         }
-      : eliminationActive && eliminationFocus
-        ? {
-            rotationX: -0.18,
-            opacity: style.opacity,
-            yOffset: 0,
-            introOpacity: 1
-          }
-        : undefined,
+      : undefined,
     delay: introEnabled ? introAnimation?.delayMs ?? 0 : 0,
     config: {
       mass: 1.1,
       tension: eliminationActive ? 200 : 180,
-      friction: eliminationActive && eliminationFocus ? 16 : 18
+      friction: eliminationActive ? 16 : 18
     },
-    reset: introEnabled || (eliminationActive && eliminationFocus),
+    reset: introEnabled,
     onRest: (result) => {
       if (
         introEnabled &&
