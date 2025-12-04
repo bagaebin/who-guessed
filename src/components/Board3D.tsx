@@ -6,12 +6,14 @@ import TileCard from './TileCard';
 import PlayerCameraTile from './PlayerCameraTile';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useGameStore } from '../state/gameStore';
 
 type Board3DProps = {
   tiles: CharacterTile[];
 };
 
 type IntroStage = 'idle' | 'dropping' | 'zooming' | 'done';
+type CinematicStep = { target: THREE.Vector3; position: THREE.Vector3; hold: number };
 
 // 한 행에 배치되는 타일 수
 const TILE_COLUMNS = 8;
@@ -31,6 +33,20 @@ const INTRO_ZOOM_TARGET: [number, number, number] = [0, 1.4, 0];
 const INTRO_ZOOM_POSITION: [number, number, number] = [0, 4.2, 15];
 const AUTO_TILT_SLOPE = 0.08;
 const AUTO_TILT_MAX = 1.1;
+const FOCUS_CAMERA_OFFSET: [number, number, number] = [0, 1.4, 3.6];
+const FOCUS_TARGET_LIFT = 0.7;
+const FOCUS_HOLD_DURATION = 1.1;
+const OVERVIEW_POSITION: [number, number, number] = [0, 11.4, 21.4];
+const OVERVIEW_TARGET: [number, number, number] = [0, 1.2, 0];
+
+function getTilePositionFromIndex(index: number, rows: number): [number, number, number] {
+  const row = Math.floor(index / TILE_COLUMNS);
+  const col = index % TILE_COLUMNS;
+  const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+  const z = ((rows - 1) / 2 - row) * TILE_SPACING;
+  const y = row * STAIR_STEP;
+  return [x, y, z];
+}
 
 function TileGrid({
   tiles,
@@ -80,7 +96,8 @@ function SceneContents({
   introState,
   introTileIds,
   onIntroTileComplete,
-  onIntroZoomComplete
+  onIntroZoomComplete,
+  cinematicPlan
 }: {
   tiles: CharacterTile[];
   cameraTilePosition: [number, number, number];
@@ -88,6 +105,7 @@ function SceneContents({
   introTileIds: string[];
   onIntroTileComplete: () => void;
   onIntroZoomComplete: () => void;
+  cinematicPlan: { key: number; steps: CinematicStep[]; onComplete: () => void };
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
@@ -164,6 +182,7 @@ function SceneContents({
         zoomPosition={zoomPosition}
         zoomTarget={zoomTarget}
         onIntroZoomComplete={onIntroZoomComplete}
+        cinematicPlan={cinematicPlan}
       />
     </>
   );
@@ -180,7 +199,8 @@ function UpdateCamera({
   zoomCompleteRef,
   zoomPosition,
   zoomTarget,
-  onIntroZoomComplete
+  onIntroZoomComplete,
+  cinematicPlan
 }: {
   controlsRef: MutableRefObject<OrbitControlsImpl | null>;
   camera: THREE.Camera;
@@ -193,7 +213,31 @@ function UpdateCamera({
   zoomPosition: THREE.Vector3;
   zoomTarget: THREE.Vector3;
   onIntroZoomComplete: () => void;
+  cinematicPlan: { key: number; steps: CinematicStep[]; onComplete: () => void };
 }) {
+  const cinematicState = useRef({
+    key: 0,
+    active: false,
+    index: 0,
+    holdTimer: 0,
+    steps: [] as CinematicStep[]
+  });
+
+  useEffect(() => {
+    if (cinematicPlan.steps.length === 0) {
+      cinematicState.current.active = false;
+      return;
+    }
+
+    cinematicState.current = {
+      key: cinematicPlan.key,
+      active: true,
+      index: 0,
+      holdTimer: 0,
+      steps: cinematicPlan.steps
+    };
+  }, [cinematicPlan.key, cinematicPlan.steps]);
+
   useFrame((_, delta) => {
     const controls = controlsRef.current;
     if (!controls || !(camera instanceof THREE.PerspectiveCamera)) return;
@@ -206,7 +250,30 @@ function UpdateCamera({
     );
     baseTargetRef.current.lerp(tempBase, 1 - Math.exp(-delta * 6));
 
-    if (introState === 'zooming') {
+    if (cinematicState.current.active) {
+      const step = cinematicState.current.steps[cinematicState.current.index];
+
+      camera.position.lerp(step.position, 1 - Math.exp(-delta * 2.4));
+      baseTargetRef.current.lerp(step.target, 1 - Math.exp(-delta * 2.4));
+
+      const isCloseEnough =
+        camera.position.distanceTo(step.position) < 0.06 &&
+        baseTargetRef.current.distanceTo(step.target) < 0.04;
+
+      if (isCloseEnough) {
+        cinematicState.current.holdTimer += delta;
+        if (cinematicState.current.holdTimer >= step.hold) {
+          cinematicState.current.holdTimer = 0;
+          cinematicState.current.index += 1;
+          if (cinematicState.current.index >= cinematicState.current.steps.length) {
+            cinematicState.current.active = false;
+            cinematicPlan.onComplete();
+          }
+        }
+      } else {
+        cinematicState.current.holdTimer = 0;
+      }
+    } else if (introState === 'zooming') {
       camera.position.lerp(zoomPosition, 1 - Math.exp(-delta * 1.8));
       baseTargetRef.current.lerp(zoomTarget, 1 - Math.exp(-delta * 1.8));
 
@@ -241,8 +308,12 @@ export default function Board3D({ tiles }: Board3DProps) {
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
+  const lastEliminatedIds = useGameStore((state) => state.lastEliminatedIds);
 
   const introTileIds = useMemo(() => tiles.slice(0, INTRO_TILE_COUNT).map((tile) => tile.id), [tiles]);
+  const tileIndexMap = useMemo(() => new Map(tiles.map((tile, index) => [tile.id, index])), [tiles]);
+  const [cinematicSteps, setCinematicSteps] = useState<CinematicStep[]>([]);
+  const [cinematicKey, setCinematicKey] = useState(0);
 
   useEffect(() => {
     if (introTileIds.length) {
@@ -264,6 +335,34 @@ export default function Board3D({ tiles }: Board3DProps) {
     setIntroStage('done');
   }, []);
 
+  useEffect(() => {
+    if (!lastEliminatedIds.length) return;
+    const focusSteps: CinematicStep[] = [];
+
+    lastEliminatedIds.forEach((id) => {
+      const index = tileIndexMap.get(id);
+      if (index === undefined) return;
+      const [x, y, z] = getTilePositionFromIndex(index, rows);
+      const target = new THREE.Vector3(x, y + FOCUS_TARGET_LIFT, z);
+      const position = target.clone().add(new THREE.Vector3(...FOCUS_CAMERA_OFFSET));
+      focusSteps.push({ target, position, hold: FOCUS_HOLD_DURATION });
+    });
+
+    if (focusSteps.length) {
+      focusSteps.push({
+        target: new THREE.Vector3(...OVERVIEW_TARGET),
+        position: new THREE.Vector3(...OVERVIEW_POSITION),
+        hold: 1.2
+      });
+      setCinematicSteps(focusSteps);
+      setCinematicKey((key) => key + 1);
+    }
+  }, [lastEliminatedIds, rows, tileIndexMap]);
+
+  const handleCinematicComplete = useCallback(() => {
+    setCinematicSteps([]);
+  }, []);
+
   return (
     <div className="board3d">
       <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
@@ -274,6 +373,7 @@ export default function Board3D({ tiles }: Board3DProps) {
           introTileIds={introTileIds}
           onIntroTileComplete={handleTileDropComplete}
           onIntroZoomComplete={handleIntroZoomComplete}
+          cinematicPlan={{ key: cinematicKey, steps: cinematicSteps, onComplete: handleCinematicComplete }}
         />
       </Canvas>
     </div>
