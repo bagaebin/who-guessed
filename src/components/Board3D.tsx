@@ -9,9 +9,18 @@ import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } f
 
 type Board3DProps = {
   tiles: CharacterTile[];
+  lastEliminatedIds: string[];
 };
 
 type IntroStage = 'idle' | 'dropping' | 'zooming' | 'done';
+type EliminationStage = 'idle' | 'focusing' | 'holding' | 'outro';
+type CameraScript = {
+  id: string;
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  lerp: number;
+  onArrive?: () => void;
+};
 
 // 한 행에 배치되는 타일 수
 const TILE_COLUMNS = 8;
@@ -31,10 +40,16 @@ const INTRO_ZOOM_TARGET: [number, number, number] = [0, 1.4, 0];
 const INTRO_ZOOM_POSITION: [number, number, number] = [0, 4.2, 15];
 const AUTO_TILT_SLOPE = 0.08;
 const AUTO_TILT_MAX = 1.1;
+const ELIMINATION_FOCUS_OFFSET: [number, number, number] = [0, 1.4, 4.4];
+const ELIMINATION_LERP = 2.6;
+const ELIMINATION_FOCUS_HOLD = 500;
+const WIDE_LERP = 1.9;
 
 function TileGrid({
   tiles,
-  introState
+  introState,
+  focusedEliminationId,
+  fallenIds
 }: {
   tiles: CharacterTile[];
   introState?: {
@@ -42,6 +57,8 @@ function TileGrid({
     tileOrder: string[];
     onTileDropComplete: () => void;
   };
+  focusedEliminationId?: string | null;
+  fallenIds: Set<string>;
 }) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const introTileIndexMap = useMemo(() => {
@@ -68,7 +85,16 @@ function TileGrid({
                   introState?.stage === 'dropping' ? introState?.onTileDropComplete : undefined
               }
             : undefined;
-        return <TileCard key={tile.id} tile={tile} position={[x, y, z]} introAnimation={introAnimation} />;
+        return (
+          <TileCard
+            key={tile.id}
+            tile={tile}
+            position={[x, y, z]}
+            introAnimation={introAnimation}
+            eliminationFocus={tile.id === focusedEliminationId}
+            hasFallen={fallenIds.has(tile.id)}
+          />
+        );
       })}
     </group>
   );
@@ -80,7 +106,11 @@ function SceneContents({
   introState,
   introTileIds,
   onIntroTileComplete,
-  onIntroZoomComplete
+  onIntroZoomComplete,
+  cameraScript,
+  isCinematic,
+  focusedEliminationId,
+  fallenIds
 }: {
   tiles: CharacterTile[];
   cameraTilePosition: [number, number, number];
@@ -88,12 +118,17 @@ function SceneContents({
   introTileIds: string[];
   onIntroTileComplete: () => void;
   onIntroZoomComplete: () => void;
+  cameraScript?: CameraScript | null;
+  isCinematic: boolean;
+  focusedEliminationId?: string | null;
+  fallenIds: Set<string>;
 }) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
   const baseTargetRef = useRef(new THREE.Vector3(...CAMERA_TARGET));
   const tiltOffsetRef = useRef(0);
   const zoomCompleteRef = useRef(false);
+  const scriptIdRef = useRef<string | null>(null);
   const tempTarget = useMemo(() => new THREE.Vector3(), []);
   const tempBase = useMemo(() => new THREE.Vector3(), []);
   const zoomPosition = useMemo(() => new THREE.Vector3(...INTRO_ZOOM_POSITION), []);
@@ -117,6 +152,12 @@ function SceneContents({
     controlsRef.current?.update();
   }, [baseOffset, camera, cameraTilePosition]);
 
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.enabled = !isCinematic;
+    }
+  }, [isCinematic]);
+
   return (
     <>
       <color attach="background" args={["#9ad6ff"]} />
@@ -131,6 +172,8 @@ function SceneContents({
           tileOrder: introTileIds,
           onTileDropComplete: onIntroTileComplete
         }}
+        focusedEliminationId={focusedEliminationId}
+        fallenIds={fallenIds}
       />
       <ContactShadows
         position={[0, -0.8, 0]}
@@ -144,6 +187,7 @@ function SceneContents({
         enableRotate={false}
         enablePan
         target={CAMERA_TARGET}
+        enabled={!isCinematic}
         mouseButtons={{
           LEFT: THREE.MOUSE.PAN,
           MIDDLE: THREE.MOUSE.DOLLY,
@@ -164,6 +208,8 @@ function SceneContents({
         zoomPosition={zoomPosition}
         zoomTarget={zoomTarget}
         onIntroZoomComplete={onIntroZoomComplete}
+        cameraScript={cameraScript}
+        scriptIdRef={scriptIdRef}
       />
     </>
   );
@@ -180,7 +226,9 @@ function UpdateCamera({
   zoomCompleteRef,
   zoomPosition,
   zoomTarget,
-  onIntroZoomComplete
+  onIntroZoomComplete,
+  cameraScript,
+  scriptIdRef
 }: {
   controlsRef: MutableRefObject<OrbitControlsImpl | null>;
   camera: THREE.Camera;
@@ -193,6 +241,8 @@ function UpdateCamera({
   zoomPosition: THREE.Vector3;
   zoomTarget: THREE.Vector3;
   onIntroZoomComplete: () => void;
+  cameraScript?: CameraScript | null;
+  scriptIdRef: MutableRefObject<string | null>;
 }) {
   useFrame((_, delta) => {
     const controls = controlsRef.current;
@@ -206,7 +256,23 @@ function UpdateCamera({
     );
     baseTargetRef.current.lerp(tempBase, 1 - Math.exp(-delta * 6));
 
-    if (introState === 'zooming') {
+    const scriptChanged = cameraScript?.id !== scriptIdRef.current;
+
+    if (scriptChanged) {
+      zoomCompleteRef.current = false;
+      scriptIdRef.current = cameraScript?.id ?? null;
+    }
+
+    if (cameraScript) {
+      const lerpAmount = 1 - Math.exp(-delta * cameraScript.lerp);
+      camera.position.lerp(cameraScript.position, lerpAmount);
+      baseTargetRef.current.lerp(cameraScript.target, lerpAmount);
+
+      if (!zoomCompleteRef.current && camera.position.distanceTo(cameraScript.position) < 0.08) {
+        zoomCompleteRef.current = true;
+        cameraScript.onArrive?.();
+      }
+    } else if (introState === 'zooming') {
       camera.position.lerp(zoomPosition, 1 - Math.exp(-delta * 1.8));
       baseTargetRef.current.lerp(zoomTarget, 1 - Math.exp(-delta * 1.8));
 
@@ -234,19 +300,50 @@ function UpdateCamera({
   return null;
 }
 
-export default function Board3D({ tiles }: Board3DProps) {
-  const [introStage, setIntroStage] = useState<IntroStage>('idle');
+export default function Board3D({ tiles, lastEliminatedIds }: Board3DProps) {
+  const [introStage, setIntroStage] = useState<IntroStage>('dropping');
   const [introDropCount, setIntroDropCount] = useState(0);
+  const [eliminationStage, setEliminationStage] = useState<EliminationStage>('idle');
+  const [focusIndex, setFocusIndex] = useState(0);
+  const [focusedEliminationId, setFocusedEliminationId] = useState<string | null>(null);
+  const [fallenIds, setFallenIds] = useState<Set<string>>(new Set());
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const introTileIds = useMemo(() => tiles.slice(0, INTRO_TILE_COUNT).map((tile) => tile.id), [tiles]);
+
+  const tilePositionMap = useMemo(() => {
+    const rowsCount = Math.ceil(tiles.length / TILE_COLUMNS);
+    return new Map(
+      tiles.map((tile, index) => {
+        const row = Math.floor(index / TILE_COLUMNS);
+        const col = index % TILE_COLUMNS;
+        const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+        const z = ((rowsCount - 1) / 2 - row) * TILE_SPACING;
+        const y = row * STAIR_STEP;
+        return [tile.id, [x, y, z] as [number, number, number]];
+      })
+    );
+  }, [tiles]);
+
+  const eliminationQueue = useMemo(() => {
+    return [...lastEliminatedIds].sort((a, b) => {
+      const aNum = Number.parseInt(a, 10);
+      const bNum = Number.parseInt(b, 10);
+      if (Number.isFinite(aNum) && Number.isFinite(bNum) && aNum !== bNum) {
+        return aNum - bNum;
+      }
+      return a.localeCompare(b);
+    });
+  }, [lastEliminatedIds]);
 
   useEffect(() => {
     if (introTileIds.length) {
       setIntroStage('dropping');
+      setIntroDropCount(0);
     }
   }, [introTileIds.length]);
 
@@ -256,6 +353,23 @@ export default function Board3D({ tiles }: Board3DProps) {
     }
   }, [introStage, introDropCount, introTileIds.length]);
 
+  useEffect(() => {
+    if (introStage !== 'done' || !eliminationQueue.length) return;
+    setEliminationStage('focusing');
+    setFocusIndex(0);
+    setFocusedEliminationId(eliminationQueue[0] ?? null);
+    setFallenIds(new Set());
+  }, [introStage, eliminationQueue]);
+
+  useEffect(() => () => holdTimerRef.current && clearTimeout(holdTimerRef.current), []);
+
+  useEffect(() => {
+    if (eliminationStage === 'focusing' && holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = undefined;
+    }
+  }, [eliminationStage]);
+
   const handleTileDropComplete = useCallback(() => {
     setIntroDropCount((count) => Math.min(count + 1, introTileIds.length));
   }, [introTileIds.length]);
@@ -263,6 +377,66 @@ export default function Board3D({ tiles }: Board3DProps) {
   const handleIntroZoomComplete = useCallback(() => {
     setIntroStage('done');
   }, []);
+
+  const handleFocusArrive = useCallback(() => {
+    if (eliminationStage !== 'focusing') return;
+    setFallenIds((prev) => {
+      const next = new Set(prev);
+      if (focusedEliminationId) {
+        next.add(focusedEliminationId);
+      }
+      return next;
+    });
+    setEliminationStage('holding');
+    holdTimerRef.current = setTimeout(() => {
+      setFocusIndex((index) => {
+        const nextIndex = index + 1;
+        const hasMore = nextIndex < eliminationQueue.length;
+        setFocusedEliminationId(hasMore ? eliminationQueue[nextIndex] ?? null : null);
+        setEliminationStage(hasMore ? 'focusing' : 'outro');
+        return nextIndex;
+      });
+    }, ELIMINATION_FOCUS_HOLD);
+  }, [eliminationStage, eliminationQueue, focusedEliminationId]);
+
+  const handleWideArrive = useCallback(() => {
+    setEliminationStage('idle');
+  }, []);
+
+  const cameraScript = useMemo<CameraScript | null>(() => {
+    if (introStage !== 'done') return null;
+
+    if (eliminationStage === 'focusing' && focusedEliminationId) {
+      const position = tilePositionMap.get(focusedEliminationId);
+      if (!position) return null;
+      const target = new THREE.Vector3(position[0], position[1] + 0.25, position[2]);
+      const cameraPosition = target
+        .clone()
+        .add(new THREE.Vector3(...ELIMINATION_FOCUS_OFFSET));
+
+      return {
+        id: `elimination-${focusedEliminationId}-${focusIndex}`,
+        target,
+        position: cameraPosition,
+        lerp: ELIMINATION_LERP,
+        onArrive: handleFocusArrive
+      };
+    }
+
+    if (eliminationStage === 'outro') {
+      return {
+        id: 'elimination-wide',
+        target: new THREE.Vector3(...INTRO_ZOOM_TARGET),
+        position: new THREE.Vector3(...INTRO_ZOOM_POSITION),
+        lerp: WIDE_LERP,
+        onArrive: handleWideArrive
+      };
+    }
+
+    return null;
+  }, [introStage, eliminationStage, focusedEliminationId, tilePositionMap, focusIndex, handleFocusArrive, handleWideArrive]);
+
+  const isCinematic = eliminationStage !== 'idle' && introStage === 'done';
 
   return (
     <div className="board3d">
@@ -274,6 +448,10 @@ export default function Board3D({ tiles }: Board3DProps) {
           introTileIds={introTileIds}
           onIntroTileComplete={handleTileDropComplete}
           onIntroZoomComplete={handleIntroZoomComplete}
+          cameraScript={cameraScript}
+          isCinematic={isCinematic}
+          focusedEliminationId={focusedEliminationId}
+          fallenIds={fallenIds}
         />
       </Canvas>
     </div>
