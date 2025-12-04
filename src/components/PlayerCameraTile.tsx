@@ -1,5 +1,5 @@
 import { Html, RoundedBox, Text } from '@react-three/drei';
-import { MeshProps, useFrame } from '@react-three/fiber';
+import { MeshProps, useFrame, useThree } from '@react-three/fiber';
 import {
   FormEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -27,6 +27,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoAspect, setVideoAspect] = useState(1);
+  const { size } = useThree();
   const { playerText, setPlayerText, submitPlayerText, isLoading } = useGameStore();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
@@ -151,6 +152,13 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
     };
   }, [focusCamera, setPlayerText]);
 
+  const bubbleDistanceFactor = useMemo(() => {
+    const baseDistanceFactor = 3.2;
+    const widthScale = size.width / 1280;
+    const clampedScale = THREE.MathUtils.clamp(widthScale, 0.9, 1.35);
+    return baseDistanceFactor * clampedScale;
+  }, [size.width]);
+
   return (
     <group position={position} rotation-x={-0.22}>
       <RoundedBox
@@ -208,7 +216,7 @@ export default function PlayerCameraTile({ position, focusCamera }: PlayerCamera
 
       <Html
         position={[0, -TILE_SIZE.height / 2 - 0.6, TILE_SIZE.depth / 2]}
-        distanceFactor={3.2}
+        distanceFactor={bubbleDistanceFactor}
         center
       >
         <form className="camera-bubble" onSubmit={handleBubbleSubmit}>
