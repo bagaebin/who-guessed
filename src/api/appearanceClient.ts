@@ -51,7 +51,7 @@ function buildMockProfile(seedTile: CharacterTile): LlmInferenceResult {
   return {
     profile: seedTile.core,
     eliminatedIds: [],
-    reasoning: { mock: 'LLM 연결 전까지는 시드 타일 프로필을 그대로 사용합니다.' }
+    reasoning: { mock: 'Using the seed tile profile until the LLM is connected.' }
   };
 }
 
@@ -72,7 +72,7 @@ export async function inferPlayerAppearance(
       const parsed = appearanceResponseSchema.parse(json);
       return parsed;
     } catch (error) {
-      console.warn('LLM 호출 실패, mock으로 대체합니다.', error);
+      console.warn('LLM call failed, falling back to mock data.', error);
     }
   }
 

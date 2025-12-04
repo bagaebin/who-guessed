@@ -20,7 +20,7 @@ export const useGameStore = create<GameState & {
   immer((set, get) => ({
     tiles: cloneTiles(),
     playerProfile: undefined,
-    playerText: '안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.',
+    playerText: "Hi! I'm into short hair and casual styles.",
     round: 1,
     phase: 'early',
     isLoading: false,
@@ -32,7 +32,7 @@ export const useGameStore = create<GameState & {
       set({
         tiles: cloneTiles(),
         playerProfile: undefined,
-        playerText: '안녕하세요! 저는 단발머리에 캐주얼을 좋아해요.',
+        playerText: "Hi! I'm into short hair and casual styles.",
         round: 1,
         phase: 'early',
         isLoading: false,
@@ -73,11 +73,11 @@ export const useGameStore = create<GameState & {
           draft.round += 1;
           draft.phase = getPhaseFromRemaining(remainingTiles, INITIAL_COUNT);
           if (remainingTiles <= 1) {
-            draft.statusMessage = '예측된 닮은꼴이 결정되었습니다!';
+            draft.statusMessage = 'A predicted look-alike has been chosen!';
           }
         });
       } catch (error) {
-        set({ statusMessage: 'LLM 응답 처리 중 문제가 발생했습니다.' });
+        set({ statusMessage: 'Something went wrong while processing the LLM response.' });
       } finally {
         set({ isLoading: false });
       }

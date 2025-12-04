@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import Board3D from './components/Board3D';
 import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
@@ -10,8 +11,8 @@ function FinalReveal() {
   const tile = remaining[0];
   return (
     <div className="final-reveal">
-      <h2>예측된 닮은꼴</h2>
-      <p>{tile.id}번 타일이 선택되었습니다.</p>
+      <h2>Predicted Look-alike</h2>
+      <p>Tile {tile.id} was selected.</p>
       <img src={tile.image} alt={tile.id} />
     </div>
   );
@@ -19,13 +20,31 @@ function FinalReveal() {
 
 export default function App() {
   const tiles = useGameStore((state) => state.tiles);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = (event: KeyboardEvent) => {
+      if (event.key === 'Alt') {
+        setIsAdminOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleToggle);
+    return () => window.removeEventListener('keydown', handleToggle);
+  }, []);
 
   return (
     <div className="app">
       <div className="left">
         <Board3D tiles={tiles} />
       </div>
-      <div className="right">
+      <div className={`admin-panel ${isAdminOpen ? 'admin-panel--open' : ''}`}>
+        <div className="admin-panel__header">
+          <p>Press Option to toggle admin mode</p>
+          <button className="ghost" onClick={() => setIsAdminOpen(false)}>
+            Close
+          </button>
+        </div>
         <UiPanel />
         <FinalReveal />
       </div>

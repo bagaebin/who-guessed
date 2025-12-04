@@ -84,6 +84,8 @@ function SceneContents({
   onIntroTileComplete,
   onIntroOverviewComplete,
   onIntroFocusComplete,
+  onUserControlStart,
+  userHasTakenControl,
   overviewTarget,
   overviewPosition,
   focusTarget
@@ -95,6 +97,8 @@ function SceneContents({
   onIntroTileComplete: () => void;
   onIntroOverviewComplete: () => void;
   onIntroFocusComplete: () => void;
+  onUserControlStart: () => void;
+  userHasTakenControl: boolean;
   overviewTarget: [number, number, number];
   overviewPosition: [number, number, number];
   focusTarget: [number, number, number];
@@ -124,13 +128,19 @@ function SceneContents({
     [baseOffset, focusTargetVector]
   );
 
-  const focusOnCameraTile = useCallback(() => {
-    camera.position.copy(focusPositionVector);
-    controlsRef.current?.target.copy(focusTargetVector);
-    baseTargetRef.current.copy(focusTargetVector);
-    tiltOffsetRef.current = 0;
-    controlsRef.current?.update();
-  }, [camera, focusPositionVector, focusTargetVector]);
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    const handleControlStart = () => {
+      onUserControlStart();
+    };
+
+    controls.addEventListener('start', handleControlStart);
+    return () => {
+      controls.removeEventListener('start', handleControlStart);
+    };
+  }, [onUserControlStart]);
 
   return (
     <>
@@ -138,7 +148,7 @@ function SceneContents({
       <hemisphereLight skyColor="#a3c4f9ff" groundColor="#4f6b8f" intensity={0.85} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
-      <PlayerCameraTile position={cameraTilePosition} focusCamera={focusOnCameraTile} />
+      <PlayerCameraTile position={cameraTilePosition} />
       <TileGrid
         tiles={tiles}
         introState={{
@@ -156,11 +166,11 @@ function SceneContents({
       />
       <OrbitControls
         ref={controlsRef}
-        enableRotate={false}
+        enableRotate
         enablePan
         target={CAMERA_TARGET}
         mouseButtons={{
-          LEFT: THREE.MOUSE.PAN,
+          LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
           RIGHT: THREE.MOUSE.PAN
         }}
@@ -177,6 +187,7 @@ function SceneContents({
         introState={introState}
         overviewCompleteRef={overviewCompleteRef}
         focusCompleteRef={focusCompleteRef}
+        userHasTakenControl={userHasTakenControl}
         overviewPosition={overviewPositionVector}
         overviewTarget={overviewTargetVector}
         focusPosition={focusPositionVector}
@@ -198,6 +209,7 @@ function UpdateCamera({
   introState,
   overviewCompleteRef,
   focusCompleteRef,
+  userHasTakenControl,
   overviewPosition,
   overviewTarget,
   focusPosition,
@@ -214,6 +226,7 @@ function UpdateCamera({
   introState: IntroStage;
   overviewCompleteRef: MutableRefObject<boolean>;
   focusCompleteRef: MutableRefObject<boolean>;
+  userHasTakenControl: boolean;
   overviewPosition: THREE.Vector3;
   overviewTarget: THREE.Vector3;
   focusPosition: THREE.Vector3;
@@ -233,7 +246,9 @@ function UpdateCamera({
     );
     baseTargetRef.current.lerp(tempBase, 1 - Math.exp(-delta * 6));
 
-    if (introState === 'overview') {
+    const shouldLockToIntroPath = !userHasTakenControl && introState !== 'done';
+
+    if (shouldLockToIntroPath && introState === 'overview') {
       camera.position.lerp(overviewPosition, 1 - Math.exp(-delta * 1.6));
       baseTargetRef.current.lerp(overviewTarget, 1 - Math.exp(-delta * 1.6));
 
@@ -245,7 +260,7 @@ function UpdateCamera({
         overviewCompleteRef.current = true;
         onIntroOverviewComplete();
       }
-    } else if (introState === 'focusing') {
+    } else if (shouldLockToIntroPath && introState === 'focusing') {
       camera.position.lerp(focusPosition, 1 - Math.exp(-delta * 2));
       baseTargetRef.current.lerp(focusTarget, 1 - Math.exp(-delta * 2));
 
@@ -280,6 +295,7 @@ function UpdateCamera({
 export default function Board3D({ tiles }: Board3DProps) {
   const [introStage, setIntroStage] = useState<IntroStage>('idle');
   const [introDropCount, setIntroDropCount] = useState(0);
+  const [userHasTakenControl, setUserHasTakenControl] = useState(false);
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
@@ -323,6 +339,11 @@ export default function Board3D({ tiles }: Board3DProps) {
     setIntroStage('done');
   }, []);
 
+  const handleUserControlStart = useCallback(() => {
+    setUserHasTakenControl(true);
+    setIntroStage('done');
+  }, []);
+
   return (
     <div className="board3d">
       <Canvas camera={{ position: CAMERA_POSITION, fov: 42 }} shadows>
@@ -334,6 +355,8 @@ export default function Board3D({ tiles }: Board3DProps) {
           onIntroTileComplete={handleTileDropComplete}
           onIntroOverviewComplete={handleIntroOverviewComplete}
           onIntroFocusComplete={handleIntroFocusComplete}
+          onUserControlStart={handleUserControlStart}
+          userHasTakenControl={userHasTakenControl}
           overviewTarget={overviewTarget}
           overviewPosition={overviewPosition}
           focusTarget={cameraTilePosition}
