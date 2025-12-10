@@ -25,7 +25,11 @@ function createSvgPlaceholder(label: string) {
       </text>
     </svg>
   `;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+
+  // TextureLoader sometimes fails to render utf-8 data URIs consistently across browsers;
+  // base64 encoding keeps the placeholder visible both on the 3D board and in the admin console.
+  const base64 = typeof btoa === 'function' ? btoa(svg) : Buffer.from(svg).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
 }
 
 const PLACEHOLDER_IMAGE = createSvgPlaceholder('Awaiting image');
