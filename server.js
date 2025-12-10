@@ -346,8 +346,9 @@ app.post("/api/appearance", async (req, res) => {
  * 이미지 생성 엔드포인트
  * - 프론트엔드에서 전달한 prompt/chainIds를 사용해 OpenAI 이미지 API 호출
  * - 실패 시 프론트엔드가 placeholder를 사용할 수 있도록 500 에러와 메시지 반환
+ * - 레거시 경로(`/generate-images`)와 프록시 경로(`/api/generate-images`)를 모두 지원
  */
-app.post("/api/generate-images", async (req, res) => {
+const generateImagesHandler = async (req, res) => {
   const { prompt, chainIds = [] } = req.body || {};
 
   if (!prompt || typeof prompt !== "string") {
@@ -376,7 +377,10 @@ app.post("/api/generate-images", async (req, res) => {
     console.error("🔥 /api/generate-images OpenAI error:", error);
     return res.status(500).json({ error: "image generation failed" });
   }
-});
+};
+
+app.post("/api/generate-images", generateImagesHandler);
+app.post("/generate-images", generateImagesHandler);
 
 app.listen(3000, () => {
   console.log("API server listening on http://localhost:3000");
