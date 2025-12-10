@@ -17,7 +17,7 @@ type PlayerCameraTileProps = {
   position: MeshProps['position'];
 };
 
-const TILE_SIZE = { width: 3.2, height: 4.4, depth: 0.16 };
+const TILE_SIZE = { width: 3.2, height: 4, depth: 0.16 };
 
 export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSpring, animated } from '@react-spring/web';
 import Board3D from './components/Board3D';
 import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
@@ -21,6 +22,23 @@ function FinalReveal() {
 export default function App() {
   const tiles = useGameStore((state) => state.tiles);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [showLogo, setShowLogo] = useState(true);
+
+  const logoSpring = useSpring({
+    from: { opacity: 0 }, // Ensure initial opacity is set
+    to: { opacity: showLogo ? 1 : 0 }, // Explicitly define the target opacity
+    config: { duration: 1000 },
+    onChange: (props) => {
+      console.log('Spring props:', props); // Log the entire props object for debugging
+      console.log('Opacity is changing:', props.opacity); // Log opacity changes
+    },
+    onRest: () => {
+      console.log('Animation complete. showLogo:', showLogo); // Log when animation completes
+      if (!showLogo) {
+        console.log('Fade-out complete, keeping logo in DOM.');
+      }
+    },
+  });
 
   useEffect(() => {
     const handleToggle = (event: KeyboardEvent) => {
@@ -33,8 +51,34 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleToggle);
   }, []);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setShowLogo(false), 3000); // Fade out after 3 seconds
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="app">
+      <div className="animated-bg"></div>
+      <animated.div
+        style={{
+          ...logoSpring,
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10,
+          pointerEvents: 'none', // Prevent interaction
+        }}
+      >
+        <img
+          src="/logo_guessed-who.png"
+          alt="Who Guessed? Logo"
+          style={{
+            width: 'clamp(150px, 80vw, 300px)', // Responsive size: min 150px, max 300px, 20% of viewport width
+            height: 'auto', // Maintain aspect ratio
+          }}
+        />
+      </animated.div>
       <div className="left">
         <Board3D tiles={tiles} />
       </div>

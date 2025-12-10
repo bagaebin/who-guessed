@@ -11,8 +11,8 @@ type TileStyle = {
 
 export const TILE_COLOR_GUIDE: Record<TileVisualState, TileStyle> = {
   active: {
-    baseColor: '#1f1fa8ff',
-    accentColor: '#151578ff',
+    baseColor: '#1f1fa8',
+    accentColor: '#151578',
     opacity: 1,
     borderRadius: 0.16
   },

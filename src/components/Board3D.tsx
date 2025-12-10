@@ -66,6 +66,7 @@ function TileGrid({
                 isActive: introState?.stage === 'dropping',
                 delayMs: introIndex * 320,
                 initialHeight: 6 + introIndex * 0.3,
+                index: introIndex, // Add index for TileCard
                 onComplete:
                   introState?.stage === 'dropping' ? introState?.onTileDropComplete : undefined
               }
@@ -126,8 +127,10 @@ function SceneContents({
 
   return (
     <>
-      <color attach="background" args={["#9ad6ff"]} />
-      <hemisphereLight skyColor="#a3c4f9ff" groundColor="#4f6b8f" intensity={0.85} />
+      {/* 배경색을 투명하게 설정 */}
+      {/* <color attach="background" args={["#9ad6ff"]} /> */}
+      {/* 조명 설정 수정 */}
+      <hemisphereLight args={["#a3c4f9", "#4f6b8f", 0.85]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
       <PlayerCameraTile position={cameraTilePosition} />

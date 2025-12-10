@@ -14,6 +14,7 @@ type TileCardProps = {
     delayMs?: number;
     initialHeight?: number;
     onComplete?: () => void;
+    index?: number; // Add index to calculate unique delayMs
   };
 };
 
@@ -31,10 +32,17 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   useEffect(() => {
     if (introEnabled && !introStartedRef.current) {
       introStartedRef.current = true;
-      introDelayRef.current = introAnimation?.delayMs ?? introDelayRef.current;
+      const baseDelay = import.meta.env.VITE_TILE_DROP_DELAY
+        ? parseInt(import.meta.env.VITE_TILE_DROP_DELAY, 10)
+        : introAnimation?.delayMs ?? introDelayRef.current;
+      // Calculate unique delay based on index
+        introDelayRef.current = baseDelay + (introAnimation?.index ?? 0) * 50; // Increment delay by index
       introHeightRef.current = introAnimation?.initialHeight ?? introHeightRef.current;
+
+      // Debugging: Log index and calculated delayMs
+      console.log(`Tile index: ${introAnimation?.index}, delayMs: ${introDelayRef.current}`);
     }
-  }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight]);
+  }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight, introAnimation?.index]);
 
   const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
     rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
