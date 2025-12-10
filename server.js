@@ -342,6 +342,42 @@ app.post("/api/appearance", async (req, res) => {
   }
 });
 
+/**
+ * 이미지 생성 엔드포인트
+ * - 프론트엔드에서 전달한 prompt/chainIds를 사용해 OpenAI 이미지 API 호출
+ * - 실패 시 프론트엔드가 placeholder를 사용할 수 있도록 500 에러와 메시지 반환
+ */
+app.post("/api/generate-images", async (req, res) => {
+  const { prompt, chainIds = [] } = req.body || {};
+
+  if (!prompt || typeof prompt !== "string") {
+    return res.status(400).json({ error: "prompt is required" });
+  }
+
+  const ids = Array.isArray(chainIds) ? chainIds : [];
+  const count = Math.max(1, ids.length || 1);
+
+  try {
+    const response = await client.images.generate({
+      model: "gpt-image-1",
+      prompt,
+      n: count,
+      size: "512x512",
+      response_format: "b64_json",
+    });
+
+    const images = response.data.map((item, index) => ({
+      id: ids[index] ?? `image-${index + 1}`,
+      image: `data:image/png;base64,${item.b64_json}`,
+    }));
+
+    return res.json({ images });
+  } catch (error) {
+    console.error("🔥 /api/generate-images OpenAI error:", error);
+    return res.status(500).json({ error: "image generation failed" });
+  }
+});
+
 app.listen(3000, () => {
   console.log("API server listening on http://localhost:3000");
 });
