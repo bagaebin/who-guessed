@@ -74,12 +74,6 @@ export type CharacterTile = {
   core: AppearanceCore;
   image: string;
   isEliminated: boolean;
-  /**
-   * Generation/inference chain metadata used to orchestrate staged image generation.
-   * `isVisible` gates whether the tile is currently rendered on the board.
-   */
-  chainId?: string;
-  parentChainId?: string;
   isVisible?: boolean;
   isGenerated?: boolean;
 };
@@ -101,7 +95,7 @@ export type GameState = {
   lastReasoning?: Record<string, string>;
   statusMessage?: string;
   lastEliminatedIds: string[];
-  /** 기록된 모든 플레이어 텍스트 입력(기수별 맥락 전달용) */
+  /** 기록된 모든 플레이어 텍스트 입력(질문-답변 로그용) */
   playerHistory: string[];
 };
 

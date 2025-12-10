@@ -46,10 +46,10 @@ function RemainingList({ tiles }: { tiles: CharacterTile[] }) {
 function PhaseHint({ phase }: { phase: GamePhase }) {
   if (isGenerationPhase(phase)) {
     const targetByPhase: Record<typeof phase, string> = {
-      gen1: '1 image (first chain)',
-      gen2: '3 images (new independent chains)',
-      gen3: '8 images (branched from the first 4 chains)',
-      gen4: '12 images refreshed with the 4th input'
+      gen1: '1 image from the first question–answer prompt',
+      gen2: '3 images for the newly spawned slots',
+      gen3: '8 images filling the board up to 8 slots with the third prompt',
+      gen4: '12 images regenerated from the 4th prompt (used for elimination)'
     } as const;
 
     return (
