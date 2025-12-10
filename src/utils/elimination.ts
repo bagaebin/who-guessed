@@ -1,4 +1,4 @@
-import { CharacterTile, GamePhase } from '../types/appearance';
+import { CharacterTile, EliminationPhase } from '../types/appearance';
 import { eliminationRangeForPhase } from './phase';
 
 function shuffle<T>(items: T[]): T[] {
@@ -18,7 +18,7 @@ function shuffle<T>(items: T[]): T[] {
  */
 export function normalizeEliminations(
   candidateIds: string[],
-  phase: GamePhase,
+  phase: EliminationPhase,
   remainingTiles: CharacterTile[]
 ): string[] {
   if (remainingTiles.length <= 1) return [];

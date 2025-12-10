@@ -1,7 +1,11 @@
 // phase를 계산하는 유틸 함수들
-import { GamePhase } from '../types/appearance';
+import { EliminationPhase, GamePhase, GenerationPhase } from '../types/appearance';
 
-export function getPhaseFromRemaining(remaining: number, initial: number): GamePhase {
+export function isGenerationPhase(phase: GamePhase): phase is GenerationPhase {
+  return phase === 'gen1' || phase === 'gen2' || phase === 'gen3' || phase === 'gen4';
+}
+
+export function getPhaseFromRemaining(remaining: number, initial: number): EliminationPhase {
   const earlyThreshold = Math.max(10, Math.ceil(initial * 0.5));
   const midThreshold = Math.max(4, Math.ceil(initial * 0.25));
 
@@ -10,7 +14,7 @@ export function getPhaseFromRemaining(remaining: number, initial: number): GameP
   return 'late';
 }
 
-export function eliminationRangeForPhase(phase: GamePhase): { min: number; max: number } {
+export function eliminationRangeForPhase(phase: EliminationPhase): { min: number; max: number } {
   switch (phase) {
     case 'early':
       return { min: 3, max: 4 };

@@ -1,7 +1,7 @@
 import { FormEvent, useMemo } from 'react';
 import { useGameStore } from '../state/gameStore';
-import { eliminationRangeForPhase } from '../utils/phase';
-import { AppearanceCore, CharacterTile, GamePhase } from '../types/appearance';
+import { eliminationRangeForPhase, isGenerationPhase } from '../utils/phase';
+import { AppearanceCore, CharacterTile, EliminationPhase, GamePhase } from '../types/appearance';
 
 function ProfileList({ profile }: { profile: AppearanceCore }) {
   const entries = useMemo(() => Object.entries(profile), [profile]);
@@ -36,14 +36,31 @@ function ReasoningView({ reasoning }: { reasoning?: Record<string, string> }) {
 }
 
 function RemainingList({ tiles }: { tiles: CharacterTile[] }) {
-  const remaining = tiles.filter((t) => !t.isEliminated);
+  const visible = tiles.filter((t) => t.isVisible !== false);
+  const remaining = visible.filter((t) => !t.isEliminated);
   return (
     <p className="remaining">Remaining tiles: {remaining.length} / {tiles.length}</p>
   );
 }
 
 function PhaseHint({ phase }: { phase: GamePhase }) {
-  const range = eliminationRangeForPhase(phase);
+  if (isGenerationPhase(phase)) {
+    const targetByPhase: Record<typeof phase, string> = {
+      gen1: '1 image (first chain)',
+      gen2: '3 images (new independent chains)',
+      gen3: '8 images (branched from the first 4 chains)',
+      gen4: '12 images refreshed with the 4th input'
+    } as const;
+
+    return (
+      <div className="phase-hint">
+        <strong>Generation phase</strong>
+        <p>{targetByPhase[phase]}</p>
+      </div>
+    );
+  }
+
+  const range = eliminationRangeForPhase(phase as EliminationPhase);
   return (
     <div className="phase-hint">
       <strong>Phase rules</strong>

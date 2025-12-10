@@ -74,9 +74,19 @@ export type CharacterTile = {
   core: AppearanceCore;
   image: string;
   isEliminated: boolean;
+  /**
+   * Generation/inference chain metadata used to orchestrate staged image generation.
+   * `isVisible` gates whether the tile is currently rendered on the board.
+   */
+  chainId?: string;
+  parentChainId?: string;
+  isVisible?: boolean;
+  isGenerated?: boolean;
 };
 
-export type GamePhase = 'early' | 'mid' | 'late';
+export type GenerationPhase = 'gen1' | 'gen2' | 'gen3' | 'gen4';
+export type EliminationPhase = 'early' | 'mid' | 'late';
+export type GamePhase = GenerationPhase | EliminationPhase;
 
 export type GameState = {
   tiles: CharacterTile[];
@@ -88,6 +98,8 @@ export type GameState = {
   lastReasoning?: Record<string, string>;
   statusMessage?: string;
   lastEliminatedIds: string[];
+  /** 기록된 모든 플레이어 텍스트 입력(기수별 맥락 전달용) */
+  playerHistory: string[];
 };
 
 export type LlmInferenceResult = {

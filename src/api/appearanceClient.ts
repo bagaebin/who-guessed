@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { eliminationRangeForPhase } from '../utils/phase';
-import { CharacterTile, GamePhase, LlmInferenceResult } from '../types/appearance';
+import { CharacterTile, EliminationPhase, LlmInferenceResult } from '../types/appearance';
 
 const appearanceCoreSchema = z.object({
   gender: z.enum(['male', 'female', 'non_binary', 'transgender']),
@@ -58,7 +58,7 @@ function buildMockProfile(seedTile: CharacterTile): LlmInferenceResult {
 export async function inferPlayerAppearance(
   playerText: string,
   remainingTiles: CharacterTile[],
-  phase: GamePhase
+  phase: EliminationPhase
 ): Promise<LlmInferenceResult> {
   const endpoint = import.meta.env.VITE_LLM_ENDPOINT;
   if (endpoint) {

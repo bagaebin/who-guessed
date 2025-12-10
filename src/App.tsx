@@ -20,7 +20,7 @@ function FinalReveal() {
 }
 
 export default function App() {
-  const tiles = useGameStore((state) => state.tiles);
+  const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
 
