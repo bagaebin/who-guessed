@@ -74,20 +74,39 @@ export type CharacterTile = {
   core: AppearanceCore;
   image: string;
   isEliminated: boolean;
+  isVisible?: boolean;
+  isGenerated?: boolean;
 };
 
-export type GamePhase = 'early' | 'mid' | 'late';
+export type GenerationPhase = 'gen1' | 'gen2' | 'gen3' | 'gen4';
+export type EliminationPhase = 'early' | 'mid' | 'late';
+export type GamePhase = GenerationPhase | EliminationPhase;
 
 export type GameState = {
   tiles: CharacterTile[];
   playerProfile?: AppearanceCore;
   playerText: string;
+  currentQuestion: string;
+  questionIndex: number;
+  questionHistory: string[];
   round: number;
   phase: GamePhase;
   isLoading: boolean;
   lastReasoning?: Record<string, string>;
   statusMessage?: string;
   lastEliminatedIds: string[];
+  /** 기록된 모든 플레이어 텍스트 입력(질문-답변 로그용) */
+  playerHistory: string[];
+  generationLogs: GenerationLogEntry[];
+};
+
+export type GenerationLogEntry = {
+  stage: GenerationPhase;
+  question: string;
+  answer: string;
+  prompt: string;
+  outputs: { id: string; image: string }[];
+  timestamp: number;
 };
 
 export type LlmInferenceResult = {

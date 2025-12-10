@@ -1,7 +1,13 @@
 import { FormEvent, useMemo } from 'react';
 import { useGameStore } from '../state/gameStore';
-import { eliminationRangeForPhase } from '../utils/phase';
-import { AppearanceCore, CharacterTile, GamePhase } from '../types/appearance';
+import { eliminationRangeForPhase, isGenerationPhase } from '../utils/phase';
+import {
+  AppearanceCore,
+  CharacterTile,
+  EliminationPhase,
+  GamePhase,
+  GenerationLogEntry
+} from '../types/appearance';
 
 function ProfileList({ profile }: { profile: AppearanceCore }) {
   const entries = useMemo(() => Object.entries(profile), [profile]);
@@ -36,14 +42,31 @@ function ReasoningView({ reasoning }: { reasoning?: Record<string, string> }) {
 }
 
 function RemainingList({ tiles }: { tiles: CharacterTile[] }) {
-  const remaining = tiles.filter((t) => !t.isEliminated);
+  const visible = tiles.filter((t) => t.isVisible !== false);
+  const remaining = visible.filter((t) => !t.isEliminated);
   return (
     <p className="remaining">Remaining tiles: {remaining.length} / {tiles.length}</p>
   );
 }
 
 function PhaseHint({ phase }: { phase: GamePhase }) {
-  const range = eliminationRangeForPhase(phase);
+  if (isGenerationPhase(phase)) {
+    const targetByPhase: Record<typeof phase, string> = {
+      gen1: '1 image from the first question–answer prompt',
+      gen2: '3 images for the newly spawned slots',
+      gen3: '8 images filling the board up to 8 slots with the third prompt',
+      gen4: '12 images regenerated from the 4th prompt (used for elimination)'
+    } as const;
+
+    return (
+      <div className="phase-hint">
+        <strong>Generation phase</strong>
+        <p>{targetByPhase[phase]}</p>
+      </div>
+    );
+  }
+
+  const range = eliminationRangeForPhase(phase as EliminationPhase);
   return (
     <div className="phase-hint">
       <strong>Phase rules</strong>
@@ -71,6 +94,35 @@ function EliminationSummary({ ids, tiles }: { ids: string[]; tiles: CharacterTil
   );
 }
 
+function GenerationConsole({ logs }: { logs: GenerationLogEntry[] }) {
+  if (!logs.length) return null;
+  return (
+    <div className="generation-console">
+      <h3>Admin • Generation console</h3>
+      {logs.slice(0, 3).map((log) => (
+        <div key={log.timestamp} className="generation-console__entry">
+          <div className="generation-console__meta">
+            <strong>{log.stage.toUpperCase()}</strong>
+            <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+          </div>
+          <p className="generation-console__prompt-label">Prompt sent</p>
+          <pre className="generation-console__prompt">{log.prompt}</pre>
+          <p className="generation-console__prompt-label">Question → Answer</p>
+          <p className="generation-console__qa">{log.question} → {log.answer}</p>
+          <div className="generation-console__images">
+            {log.outputs.map((output) => (
+              <figure key={output.id}>
+                <img src={output.image} alt={`${output.id} placeholder`} />
+                <figcaption>{output.id}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function UiPanel() {
   const {
     submitPlayerText,
@@ -84,7 +136,9 @@ export default function UiPanel() {
     reset,
     lastEliminatedIds,
     playerText,
-    setPlayerText
+    setPlayerText,
+    currentQuestion,
+    generationLogs
   } = useGameStore();
 
   const handleSubmit = async (event: FormEvent) => {
@@ -105,13 +159,17 @@ export default function UiPanel() {
       </div>
 
       <form onSubmit={handleSubmit} className="chat-box">
-        <label htmlFor="playerText">Introduce yourself</label>
+        <div className="question-block">
+          <p className="question-label">이번 질문</p>
+          <p className="question-text">{currentQuestion || '질문을 불러오는 중이에요.'}</p>
+        </div>
+        <label htmlFor="playerText">위 질문에 대한 답변</label>
         <textarea
           id="playerText"
           value={playerText}
           onChange={(e) => setPlayerText(e.target.value)}
           rows={4}
-          placeholder="e.g. I am..."
+          placeholder="질문에 대한 생각을 알려주세요."
         />
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Thinking...' : 'Send to LLM'}
@@ -126,6 +184,7 @@ export default function UiPanel() {
       {playerProfile && <ProfileList profile={playerProfile} />}
       <ReasoningView reasoning={lastReasoning} />
       {statusMessage && <div className="status">{statusMessage}</div>}
+      <GenerationConsole logs={generationLogs} />
     </div>
   );
 }
