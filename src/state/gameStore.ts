@@ -15,7 +15,7 @@ import {
   GenerationPhase
 } from '../types/appearance';
 
-const FINAL_SLOT_COUNT = 12;
+const FINAL_SLOT_COUNT = 10;
 
 function createSvgPlaceholder(label: string) {
   const svg = `
@@ -46,20 +46,20 @@ function getNextQuestion(index: number): { nextQuestion: string; nextIndex: numb
 }
 
 const generationTargets: Record<GenerationPhase, string[]> = {
-  gen1: ['chain-1'],
-  gen2: ['chain-2', 'chain-3', 'chain-4'],
-  gen3: chainIds.slice(0, 8),
-  gen4: chainIds
+  gen1: chainIds.slice(0, 1),
+  gen2: chainIds.slice(0, 3),
+  gen3: chainIds.slice(0, 7),
+  gen4: chainIds.slice(0, 10)
 };
 
 const visibilityByPhase: Record<GamePhase, Set<string>> = {
-  gen1: new Set(['chain-1']),
-  gen2: new Set(['chain-1', 'chain-2', 'chain-3', 'chain-4']),
-  gen3: new Set(chainIds.slice(0, 8)),
-  gen4: new Set(chainIds),
-  early: new Set(chainIds),
-  mid: new Set(chainIds),
-  late: new Set(chainIds)
+  gen1: new Set(chainIds.slice(0, 1)),
+  gen2: new Set(chainIds.slice(0, 3)),
+  gen3: new Set(chainIds.slice(0, 7)),
+  gen4: new Set(chainIds.slice(0, 10)),
+  early: new Set(chainIds.slice(0, 10)),
+  mid: new Set(chainIds.slice(0, 10)),
+  late: new Set(chainIds.slice(0, 10))
 };
 
 function baseSlotFromSeed(index: number): CharacterTile {
@@ -185,6 +185,22 @@ async function generateAppearanceForChains(
   });
 }
 
+function selectChainIdsForGeneration(tiles: CharacterTile[], phase: GenerationPhase): string[] {
+  const preferred = generationTargets[phase] ?? [];
+  const ordered = preferred.reduce<{ fresh: string[]; existing: string[] }>((acc, id) => {
+    const tile = tiles.find((t) => t.id === id);
+    if (tile?.isGenerated) {
+      acc.existing.push(id);
+    } else {
+      acc.fresh.push(id);
+    }
+    return acc;
+  },
+  { fresh: [], existing: [] });
+
+  return [...ordered.fresh, ...ordered.existing].slice(0, preferred.length);
+}
+
 const nextPhase: Record<GenerationPhase, GamePhase> = {
   gen1: 'gen2',
   gen2: 'gen3',
@@ -259,8 +275,9 @@ export const useGameStore = create<GameState & {
       if (isGenerationPhase(state.phase)) {
         try {
           const { nextQuestion, nextIndex } = getNextQuestion(state.questionIndex);
+          const chainList = selectChainIdsForGeneration(state.tiles, state.phase);
           const updates = await generateAppearanceForChains(
-            generationTargets[state.phase],
+            chainList,
             state.currentQuestion,
             trimmed,
             state.tiles,
