@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { inferPlayerAppearance } from '../api/appearanceClient';
 import { initialTiles } from '../data/tiles';
+import { questionPool } from '../data/questions';
 import { normalizeEliminations } from '../utils/elimination';
 import { getPhaseFromRemaining, isGenerationPhase } from '../utils/phase';
 import {
@@ -17,6 +18,14 @@ const FINAL_SLOT_COUNT = 12;
 const PLACEHOLDER_IMAGE = 'https://placehold.co/200x240?text=Awaiting+image';
 const seedPool = initialTiles.slice(0, FINAL_SLOT_COUNT);
 const chainIds = Array.from({ length: FINAL_SLOT_COUNT }, (_, index) => `chain-${index + 1}`);
+const initialQuestionIndex = 0;
+const initialQuestion = questionPool[initialQuestionIndex]?.text ?? '';
+
+function getNextQuestion(index: number): { nextQuestion: string; nextIndex: number } {
+  if (!questionPool.length) return { nextQuestion: '', nextIndex: 0 };
+  const nextIndex = (index + 1) % questionPool.length;
+  return { nextQuestion: questionPool[nextIndex].text, nextIndex };
+}
 
 const chainParents: Record<string, string | undefined> = {
   'chain-1': undefined,
@@ -182,7 +191,10 @@ export const useGameStore = create<GameState & {
   immer((set, get) => ({
     tiles: buildInitialTiles(),
     playerProfile: undefined,
-    playerText: "Hi! I'm into short hair and casual styles.",
+    playerText: '',
+    currentQuestion: initialQuestion,
+    questionIndex: initialQuestionIndex,
+    questionHistory: initialQuestion ? [initialQuestion] : [],
     round: 1,
     phase: 'gen1',
     isLoading: false,
@@ -195,7 +207,10 @@ export const useGameStore = create<GameState & {
       set({
         tiles: buildInitialTiles(),
         playerProfile: undefined,
-        playerText: "Hi! I'm into short hair and casual styles.",
+        playerText: '',
+        currentQuestion: initialQuestion,
+        questionIndex: initialQuestionIndex,
+        questionHistory: initialQuestion ? [initialQuestion] : [],
         round: 1,
         phase: 'gen1',
         isLoading: false,
@@ -232,6 +247,7 @@ export const useGameStore = create<GameState & {
 
       if (isGenerationPhase(state.phase)) {
         try {
+          const { nextQuestion, nextIndex } = getNextQuestion(state.questionIndex);
           const updates = generateAppearanceForChains(
             generationTargets[state.phase],
             trimmed,
@@ -261,6 +277,12 @@ export const useGameStore = create<GameState & {
             const upcomingPhase = nextPhase[state.phase];
             draft.phase = upcomingPhase;
             draft.tiles = updateVisibility(draft.tiles, upcomingPhase);
+            draft.playerText = '';
+            draft.currentQuestion = nextQuestion;
+            draft.questionIndex = nextIndex;
+            if (nextQuestion) {
+              draft.questionHistory.push(nextQuestion);
+            }
             if (!isGenerationPhase(upcomingPhase)) {
               const remainingCount = draft.tiles.filter((t) => !t.isEliminated && t.isVisible !== false).length;
               draft.phase = getPhaseFromRemaining(remainingCount, FINAL_SLOT_COUNT);
@@ -300,6 +322,13 @@ export const useGameStore = create<GameState & {
           const remainingTiles = draft.tiles.filter((t) => !t.isEliminated && t.isVisible !== false).length;
           draft.round += 1;
           draft.phase = getPhaseFromRemaining(remainingTiles, FINAL_SLOT_COUNT);
+          const { nextQuestion, nextIndex } = getNextQuestion(draft.questionIndex);
+          draft.playerText = '';
+          draft.currentQuestion = nextQuestion;
+          draft.questionIndex = nextIndex;
+          if (nextQuestion) {
+            draft.questionHistory.push(nextQuestion);
+          }
           if (remainingTiles <= 1) {
             draft.statusMessage = 'A predicted look-alike has been chosen!';
           }

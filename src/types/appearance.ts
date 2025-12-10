@@ -92,6 +92,9 @@ export type GameState = {
   tiles: CharacterTile[];
   playerProfile?: AppearanceCore;
   playerText: string;
+  currentQuestion: string;
+  questionIndex: number;
+  questionHistory: string[];
   round: number;
   phase: GamePhase;
   isLoading: boolean;

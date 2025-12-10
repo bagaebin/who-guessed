@@ -101,7 +101,8 @@ export default function UiPanel() {
     reset,
     lastEliminatedIds,
     playerText,
-    setPlayerText
+    setPlayerText,
+    currentQuestion
   } = useGameStore();
 
   const handleSubmit = async (event: FormEvent) => {
@@ -122,13 +123,17 @@ export default function UiPanel() {
       </div>
 
       <form onSubmit={handleSubmit} className="chat-box">
-        <label htmlFor="playerText">Introduce yourself</label>
+        <div className="question-block">
+          <p className="question-label">이번 질문</p>
+          <p className="question-text">{currentQuestion || '질문을 불러오는 중이에요.'}</p>
+        </div>
+        <label htmlFor="playerText">위 질문에 대한 답변</label>
         <textarea
           id="playerText"
           value={playerText}
           onChange={(e) => setPlayerText(e.target.value)}
           rows={4}
-          placeholder="e.g. I am..."
+          placeholder="질문에 대한 생각을 알려주세요."
         />
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Thinking...' : 'Send to LLM'}
