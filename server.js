@@ -363,9 +363,13 @@ const generateImagesHandler = async (req, res) => {
       model: "gpt-image-1",
       prompt,
       n: count,
-      size: "512x512",
-      response_format: "b64_json",
+      // OpenAI Images API (gpt-image-1) currently supports: '1024x1024', '1024x1536', '1536x1024', or 'auto'.
+      // We use 1024x1024 and downscale on the client for board tiles.
+      size: "1024x1024",
+      // NOTE: response_format omitted – default is b64_json
     });
+
+    console.log("✅ OpenAI image response count:", response.data.length);
 
     const images = response.data.map((item, index) => ({
       id: ids[index] ?? `image-${index + 1}`,
@@ -374,8 +378,18 @@ const generateImagesHandler = async (req, res) => {
 
     return res.json({ images });
   } catch (error) {
-    console.error("🔥 /api/generate-images OpenAI error:", error);
-    return res.status(500).json({ error: "image generation failed" });
+    const status = error?.status || 500;
+    const payload = {
+      error: "image generation failed",
+      detail: {
+        message: error?.message,
+        status: error?.status,
+        data: error?.response?.data,
+      },
+    };
+
+    console.error("🔥 /api/generate-images OpenAI error:", payload);
+    return res.status(status).json(payload);
   }
 };
 
