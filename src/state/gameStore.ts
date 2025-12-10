@@ -15,7 +15,20 @@ import {
 } from '../types/appearance';
 
 const FINAL_SLOT_COUNT = 12;
-const PLACEHOLDER_IMAGE = 'https://placehold.co/200x240?text=Awaiting+image';
+
+function createSvgPlaceholder(label: string) {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="240" viewBox="0 0 200 240">
+      <rect width="200" height="240" fill="#f3f4f6" stroke="#d1d5db" stroke-width="3" />
+      <text x="100" y="120" text-anchor="middle" font-size="16" fill="#4b5563" font-family="Arial, sans-serif">
+        ${label}
+      </text>
+    </svg>
+  `;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+const PLACEHOLDER_IMAGE = createSvgPlaceholder('Awaiting image');
 const seedPool = initialTiles.slice(0, FINAL_SLOT_COUNT);
 const chainIds = Array.from({ length: FINAL_SLOT_COUNT }, (_, index) => `chain-${index + 1}`);
 const initialQuestionIndex = 0;
@@ -160,7 +173,7 @@ function generateAppearanceForChains(
     const baseCore = selectBaseCore(chainId, tiles);
     const derivedCore = remixCore(baseCore, prompt, `${chainId}-${stage}`);
     const slotIndex = chainIds.indexOf(chainId) + 1;
-    const image = `https://placehold.co/200x240?text=${stage.toUpperCase()}-${slotIndex}`;
+    const image = createSvgPlaceholder(`${stage.toUpperCase()}-${slotIndex}`);
     return { chainId, core: derivedCore, image, prompt };
   });
 }
