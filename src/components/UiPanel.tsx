@@ -1,7 +1,13 @@
 import { FormEvent, useMemo } from 'react';
 import { useGameStore } from '../state/gameStore';
 import { eliminationRangeForPhase, isGenerationPhase } from '../utils/phase';
-import { AppearanceCore, CharacterTile, EliminationPhase, GamePhase } from '../types/appearance';
+import {
+  AppearanceCore,
+  CharacterTile,
+  EliminationPhase,
+  GamePhase,
+  GenerationLogEntry
+} from '../types/appearance';
 
 function ProfileList({ profile }: { profile: AppearanceCore }) {
   const entries = useMemo(() => Object.entries(profile), [profile]);
@@ -88,6 +94,35 @@ function EliminationSummary({ ids, tiles }: { ids: string[]; tiles: CharacterTil
   );
 }
 
+function GenerationConsole({ logs }: { logs: GenerationLogEntry[] }) {
+  if (!logs.length) return null;
+  return (
+    <div className="generation-console">
+      <h3>Admin • Generation console</h3>
+      {logs.slice(0, 3).map((log) => (
+        <div key={log.timestamp} className="generation-console__entry">
+          <div className="generation-console__meta">
+            <strong>{log.stage.toUpperCase()}</strong>
+            <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+          </div>
+          <p className="generation-console__prompt-label">Prompt sent</p>
+          <pre className="generation-console__prompt">{log.prompt}</pre>
+          <p className="generation-console__prompt-label">Question → Answer</p>
+          <p className="generation-console__qa">{log.question} → {log.answer}</p>
+          <div className="generation-console__images">
+            {log.outputs.map((output) => (
+              <figure key={output.id}>
+                <img src={output.image} alt={`${output.id} placeholder`} />
+                <figcaption>{output.id}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function UiPanel() {
   const {
     submitPlayerText,
@@ -102,7 +137,8 @@ export default function UiPanel() {
     lastEliminatedIds,
     playerText,
     setPlayerText,
-    currentQuestion
+    currentQuestion,
+    generationLogs
   } = useGameStore();
 
   const handleSubmit = async (event: FormEvent) => {
@@ -148,6 +184,7 @@ export default function UiPanel() {
       {playerProfile && <ProfileList profile={playerProfile} />}
       <ReasoningView reasoning={lastReasoning} />
       {statusMessage && <div className="status">{statusMessage}</div>}
+      <GenerationConsole logs={generationLogs} />
     </div>
   );
 }

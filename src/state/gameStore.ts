@@ -197,6 +197,7 @@ export const useGameStore = create<GameState & {
     currentQuestion: initialQuestion,
     questionIndex: initialQuestionIndex,
     questionHistory: initialQuestion ? [initialQuestion] : [],
+    generationLogs: [],
     round: 1,
     phase: 'gen1',
     isLoading: false,
@@ -213,6 +214,7 @@ export const useGameStore = create<GameState & {
         currentQuestion: initialQuestion,
         questionIndex: initialQuestionIndex,
         questionHistory: initialQuestion ? [initialQuestion] : [],
+        generationLogs: [],
         round: 1,
         phase: 'gen1',
         isLoading: false,
@@ -258,6 +260,15 @@ export const useGameStore = create<GameState & {
             state.phase
           );
 
+          const generationLog = {
+            stage: state.phase,
+            question: state.currentQuestion,
+            answer: trimmed,
+            prompt: updates[0]?.prompt ?? '',
+            outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
+            timestamp: Date.now()
+          } as const;
+
           set((draft) => {
             updates.forEach((update) => {
               const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
@@ -273,6 +284,7 @@ export const useGameStore = create<GameState & {
 
             draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
             draft.playerHistory.push(trimmed);
+            draft.generationLogs.unshift(generationLog);
             draft.lastEliminatedIds = [];
             draft.lastReasoning = undefined;
             draft.round += 1;

@@ -97,6 +97,16 @@ export type GameState = {
   lastEliminatedIds: string[];
   /** 기록된 모든 플레이어 텍스트 입력(질문-답변 로그용) */
   playerHistory: string[];
+  generationLogs: GenerationLogEntry[];
+};
+
+export type GenerationLogEntry = {
+  stage: GenerationPhase;
+  question: string;
+  answer: string;
+  prompt: string;
+  outputs: { id: string; image: string }[];
+  timestamp: number;
 };
 
 export type LlmInferenceResult = {
