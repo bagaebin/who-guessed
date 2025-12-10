@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { inferPlayerAppearance } from '../api/appearanceClient';
+import { requestImages } from '../api/imageClient';
 import { initialTiles } from '../data/tiles';
 import { questionPool } from '../data/questions';
 import { normalizeEliminations } from '../utils/elimination';
@@ -164,20 +165,22 @@ function selectBaseCore(chainId: string, tiles: CharacterTile[]): AppearanceCore
   return seedPool[index % seedPool.length].core;
 }
 
-function generateAppearanceForChains(
+async function generateAppearanceForChains(
   chainList: string[],
   question: string,
   answer: string,
   tiles: CharacterTile[],
   stage: GenerationPhase
-): { chainId: string; core: AppearanceCore; image: string; prompt: string }[] {
+): Promise<{ chainId: string; core: AppearanceCore; image: string; prompt: string }[]> {
   const prompt = buildPromptFromTurn(question, answer);
+  const fetchedImages = await requestImages(prompt, chainList);
 
   return chainList.map((chainId) => {
     const baseCore = selectBaseCore(chainId, tiles);
     const derivedCore = remixCore(baseCore, prompt, `${chainId}-${stage}`);
     const slotIndex = chainIds.indexOf(chainId) + 1;
-    const image = createSvgPlaceholder(`${stage.toUpperCase()}-${slotIndex}`);
+    const fallback = createSvgPlaceholder(`${stage.toUpperCase()}-${slotIndex}`);
+    const image = fetchedImages[chainId] ?? fallback;
     return { chainId, core: derivedCore, image, prompt };
   });
 }
@@ -256,7 +259,7 @@ export const useGameStore = create<GameState & {
       if (isGenerationPhase(state.phase)) {
         try {
           const { nextQuestion, nextIndex } = getNextQuestion(state.questionIndex);
-          const updates = generateAppearanceForChains(
+          const updates = await generateAppearanceForChains(
             generationTargets[state.phase],
             state.currentQuestion,
             trimmed,
