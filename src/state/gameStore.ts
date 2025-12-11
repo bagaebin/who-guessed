@@ -143,6 +143,22 @@ function buildPromptFromTurn(question: string, answer: string): string {
   return `realistic ID photo, centered bust portrait on a clean white background. The image must depict ${descriptor}, avoiding animals or fictional beings and containing absolutely no written text, captions, labels, or symbols.`;
 }
 
+function formatGenerationError(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes('VITE_IMAGE_ENDPOINT')) {
+      return 'Image endpoint is missing. Set VITE_IMAGE_ENDPOINT to enable generation.';
+    }
+
+    if (error.message.includes('VITE_IMAGE_ANALYSIS_ENDPOINT')) {
+      return 'Image analysis endpoint is missing. Set VITE_IMAGE_ANALYSIS_ENDPOINT to analyze generated images.';
+    }
+
+    return `Failed to generate appearance samples: ${error.message}`;
+  }
+
+  return 'Failed to generate appearance samples.';
+}
+
 function determineVisibleIds(phase: GamePhase): Set<string> {
   return visibilityByPhase[phase] ?? new Set(chainIds);
 }
@@ -321,8 +337,9 @@ export const useGameStore = create<GameState & {
             draft.statusMessage = `Generated ${updates.length} images from the prompt built for "${state.currentQuestion}".`;
           });
         } catch (error) {
-          console.warn('Failed to generate appearance samples', error);
-          set({ statusMessage: 'Failed to generate appearance samples.', isLoading: false });
+          const statusMessage = formatGenerationError(error);
+          console.warn(statusMessage, error);
+          set({ statusMessage, isLoading: false });
         } finally {
           set((draft) => {
             draft.isLoading = false;
