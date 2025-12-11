@@ -396,6 +396,46 @@ const generateImagesHandler = async (req, res) => {
 app.post("/api/generate-images", generateImagesHandler);
 app.post("/generate-images", generateImagesHandler);
 
+// 🔍 이미지 분석 엔드포인트 (VITE_IMAGE_ANALYSIS_ENDPOINT)
+app.post("/api/imageAnalysisClient", async (req, res) => {
+  const { images } = req.body || {};
+
+  // images는 { id, image } 형태의 배열이어야 함
+  if (!Array.isArray(images)) {
+    return res.status(400).json({ error: "images payload must be an array" });
+  }
+
+  try {
+    // 프론트에서 기대하는 AppearanceCore 형식을 맞춘 기본 분석 결과 생성
+    const results = images.map((item) => ({
+      id: item.id,
+      core: {
+        gender: "non_binary",
+        race: "mixed",
+        ageGroup: "adult",
+        skinTone: "medium",
+        bodyShape: "average",
+        skinCondition: "clear",
+        hairLength: "medium",
+        hairStyle: "straight",
+        hairColor: "black",
+        glasses: "none",
+        facialHair: "none",
+        faceShape: "oval",
+        expressionBaseline: "neutral",
+        styleVibe: "casual",
+        makeupLevel: "none",
+        accessoriesPresence: "none",
+      },
+    }));
+
+    return res.json({ results });
+  } catch (error) {
+    console.error("🔥 /api/imageAnalysisClient error:", error);
+    return res.status(500).json({ error: "image analysis failed", detail: error?.message });
+  }
+});
+
 app.listen(3000, () => {
   console.log("API server listening on http://localhost:3000");
 });
