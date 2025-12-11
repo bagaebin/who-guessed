@@ -196,6 +196,31 @@ button.ghost {
   box-shadow: none;
 }
 
+.question-banner-wrapper {
+  position: fixed;
+  top: 12px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.question-banner {
+  width: min(960px, 92vw);
+  padding: 10px 16px;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.question-banner__text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .profile, .reasoning, .status, .phase-hint, .elimination-summary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);

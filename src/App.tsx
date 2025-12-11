@@ -21,6 +21,8 @@ function FinalReveal() {
 
 export default function App() {
   const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
+  const currentQuestion = useGameStore((state) => state.currentQuestion);
+  const isInputLocked = useGameStore((state) => state.isInputLocked);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
 
@@ -56,9 +58,47 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    const bgm = new Audio('/bgm_Who Guessed.mp3');
+    bgm.loop = true;
+    bgm.volume = 0.3;
+
+    const intro1 = new Audio('/who-guessed.mp3');
+    const intro2 = new Audio('/you-are-guessed.mp3');
+
+    const playAudio = async () => {
+      try {
+        await bgm.play();
+        await intro1.play();
+        intro1.onended = async () => {
+          try {
+            await intro2.play();
+          } catch (e) {
+            console.error('Failed to play second intro:', e);
+          }
+        };
+      } catch (e) {
+        console.error('Audio autoplay failed:', e);
+      }
+    };
+
+    playAudio();
+
+    return () => {
+      bgm.pause();
+      intro1.pause();
+      intro2.pause();
+    };
+  }, []);
+
   return (
     <div className="app">
       <div className="animated-bg"></div>
+      <div className="question-banner-wrapper">
+        <div className="question-banner camera-bubble">
+          <p className="question-banner__text">{currentQuestion || '질문을 준비 중이에요.'}</p>
+        </div>
+      </div>
       <animated.div
         style={{
           ...logoSpring,

@@ -4,44 +4,52 @@ export type QuestionEntry = {
 };
 
 export const questionPool: QuestionEntry[] = [
-  {
-    id: 'q1',
-    text: '당신이 가장 편안함을 느끼는 사람들과의 관계는 어떤 모습인가요?'
-  },
-  {
-    id: 'q2',
-    text: '어릴 때 자주 듣던 별명이나 묘사는 무엇이었나요?'
-  },
-  {
-    id: 'q3',
-    text: '친구들이 당신에게 기대하는 역할이나 분위기가 있다면 무엇인가요?'
-  },
-  {
-    id: 'q4',
-    text: '가족이나 가까운 사람들이 당신을 어떻게 표현하는지 한 문장으로 알려주세요.'
-  },
-  {
-    id: 'q5',
-    text: '즐겨 입는 옷차림이나 스타일 분위기를 설명해 주세요.'
-  },
-  {
-    id: 'q6',
-    text: '주말이나 여가 시간에는 주로 무엇을 하며 보내나요?'
-  },
-  {
-    id: 'q7',
-    text: '학교나 직장에서 가장 자주 듣는 피드백은 무엇이었나요?'
-  },
-  {
-    id: 'q8',
-    text: '중요하게 생각하는 가치나 태도를 하나만 꼽는다면 무엇인가요?'
-  },
-  {
-    id: 'q9',
-    text: '새로운 사람을 만날 때 가장 먼저 나누는 이야기는 무엇인가요?'
-  },
-  {
-    id: 'q10',
-    text: '자신의 외모나 분위기를 표현하는 단어 세 가지를 적어 주세요.'
-  }
+  { id: 'q1', text: "Where do you usually hang out?" },
+  { id: 'q2', text: "What time of day do you like most?" },
+  { id: 'q3', text: "What music do you listen to?" },
+  { id: 'q4', text: "What food do you pick on busy days?" },
+  { id: 'q5', text: "What do you do with friends?" },
+  { id: 'q6', text: "Do you stay home or go out on days off?" },
+  { id: 'q7', text: "Watched anything good recently?" },
+  { id: 'q8', text: "What place helps you focus?" },
+  { id: 'q9', text: "Do you have a texting style or emoji you use often?" },
+  { id: 'q10', text: "What's your favorite food?" },
+  { id: 'q11', text: "What style of clothes do you like?" },
+  { id: 'q12', text: "When you travel, do you like tourist spots or local life?" },
+  { id: 'q13', text: "Do you have a hobby right now?" },
+  { id: 'q14', text: "What do you talk about first with new people?" },
+  { id: 'q15', text: "What's the first thing you do on a lazy day?" },
+  { id: 'q16', text: "What social media do you use?" },
+  { id: 'q17', text: "What do you do when you're stressed?" },
+  { id: 'q18', text: "What weather do you like?" },
+  { id: 'q19', text: "What item do you always carry or use?" },
+  { id: 'q20', text: "What's your favorite color or vibe?" },
+  { id: 'q21', text: "What's something new you want to learn?" },
+  { id: 'q22', text: "What do you do when you suddenly have free time?" },
+  { id: 'q23', text: "What app do you use the most?" },
+  { id: 'q24', text: "What do you need to work or study well?" },
+  { id: 'q25', text: "How would your friends describe you?" },
+  { id: 'q26', text: "What small thing makes you happy?" },
+  { id: 'q27', text: "Do you follow any routines?" },
+  { id: 'q28', text: "What topic are you into these days?" },
+  { id: 'q29', text: "Are you a morning person or a night person?" },
+  { id: 'q30', text: "What's something recently that made you feel good?" },
+  { id: 'q31', text: "Do you have a job?" },
+  { id: 'q32', text: "Are you a student, employed, or something else?" },
+  { id: 'q33', text: "Do you live alone, with family, or with others?" },
+  { id: 'q34', text: "Do you use public transport or private transport more?" },
+  { id: 'q35', text: "Do you spend money easily or carefully?" },
+  { id: 'q36', text: "Do you trust your government?" },
+  { id: 'q37', text: "Do you follow the news?" },
+  { id: 'q38', text: "Do you care more about individual freedom or social safety?" },
+  { id: 'q39', text: "Do you join community groups or not?" },
+  { id: 'q40', text: "Do you think society is improving or getting worse?" },
+  { id: 'q41', text: "Are you left wing or right wing?" },
+  { id: 'q42', text: "Do you vote regularly?" },
+  { id: 'q43', text: "Do you discuss politics with others?" },
+  { id: 'q44', text: "Do you feel financially stable?" },
+  { id: 'q45', text: "Are you wealthy, average, or struggling?" },
+  { id: 'q46', text: "Do you trust institutions or not?" },
+  { id: 'q47', text: "Should taxes be higher or lower?" },
+  { id: 'q48', text: "Do you prefer stronger welfare or smaller government?" }
 ];

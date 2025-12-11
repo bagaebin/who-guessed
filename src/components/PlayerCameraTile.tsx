@@ -15,11 +15,12 @@ import { TILE_COLOR_GUIDE } from '../utils/tileStyleGuide';
 
 type PlayerCameraTileProps = {
   position: MeshProps['position'];
+  onFocusRequest?: () => void;
 };
 
 const TILE_SIZE = { width: 3.2, height: 4, depth: 0.16 };
 
-export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
+export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCameraTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -27,10 +28,11 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoAspect, setVideoAspect] = useState(1);
   const { size } = useThree();
-  const { playerText, setPlayerText, submitPlayerText, isLoading } = useGameStore();
+  const { playerText, setPlayerText, submitPlayerText, isLoading, isInputLocked } = useGameStore();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
   const tileStyle = useMemo(() => TILE_COLOR_GUIDE.active, []);
+  const bubbleDisabled = isInputLocked || isLoading;
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -140,6 +142,7 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
         !event.isComposing
       ) {
         inputRef.current?.focus();
+        onFocusRequest?.();
         setPlayerText((prev) => `${prev}${event.key}`);
       }
     };
@@ -148,7 +151,7 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [setPlayerText]);
+  }, [onFocusRequest, setPlayerText]);
 
   const bubbleDistanceFactor = useMemo(() => {
     const baseDistanceFactor = 3.8;
@@ -218,8 +221,8 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
               onKeyDown={handleInputKeyDown}
               placeholder="Type your bubble text"
             />
-            <button type="submit" disabled={isLoading}>
-              {isLoading ? 'Sending...' : 'Send'}
+            <button type="submit" disabled={bubbleDisabled}>
+              {bubbleDisabled ? 'Waiting...' : 'Send'}
             </button>
           </div>
         </form>
