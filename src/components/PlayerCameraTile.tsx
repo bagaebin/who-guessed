@@ -220,6 +220,7 @@ export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCam
               onChange={(event) => setPlayerText(event.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder="Type your bubble text"
+              disabled={bubbleDisabled}
             />
             <button type="submit" disabled={bubbleDisabled}>
               {bubbleDisabled ? 'Waiting...' : 'Send'}

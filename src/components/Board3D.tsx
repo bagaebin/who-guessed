@@ -1,10 +1,10 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
 import TileCard from './TileCard';
 import PlayerCameraTile from './PlayerCameraTile';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type Board3DProps = {
   tiles: CharacterTile[];
@@ -30,16 +30,17 @@ const OVERVIEW_POSITION_Y_PADDING = 4;
 
 function TileGrid({
   tiles,
+  tilePlacements,
   introState
 }: {
   tiles: CharacterTile[];
+  tilePlacements: Map<string, [number, number, number]>;
   introState?: {
     stage: IntroStage;
     tileOrder: string[];
     onTileDropComplete: () => void;
   };
 }) {
-  const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const introTileIndexMap = useMemo(() => {
     if (!introState) return new Map<string, number>();
     return new Map(introState.tileOrder.map((id, index) => [id, index]));
@@ -47,12 +48,8 @@ function TileGrid({
 
   return (
     <group position={[0, 0, 0]}>
-      {tiles.map((tile, index) => {
-        const row = Math.floor(index / TILE_COLUMNS);
-        const col = index % TILE_COLUMNS;
-        const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
-        const z = ((rows - 1) / 2 - row) * TILE_SPACING;
-        const y = row * STAIR_STEP;
+      {tiles.map((tile) => {
+        const [x = 0, y = 0, z = 0] = tilePlacements.get(tile.id) ?? [0, 0, 0];
         const introIndex = introTileIndexMap.get(tile.id);
         const introAnimation =
           introIndex !== undefined
@@ -73,6 +70,7 @@ function TileGrid({
 
 function SceneContents({
   tiles,
+  tilePlacements,
   cameraTilePosition,
   cameraPosition,
   cameraTarget,
@@ -81,6 +79,7 @@ function SceneContents({
   onIntroTileComplete
 }: {
   tiles: CharacterTile[];
+  tilePlacements: Map<string, [number, number, number]>;
   cameraTilePosition: [number, number, number];
   cameraPosition: [number, number, number];
   cameraTarget: [number, number, number];
@@ -89,13 +88,26 @@ function SceneContents({
   onIntroTileComplete: () => void;
 }) {
   const camera = useThree((state) => state.camera);
+  const desiredPosition = useRef(new THREE.Vector3(...cameraPosition));
+  const desiredTarget = useRef(new THREE.Vector3(...cameraTarget));
+
+  useEffect(() => {
+    desiredPosition.current.set(...cameraPosition);
+    desiredTarget.current.set(...cameraTarget);
+  }, [cameraPosition, cameraTarget]);
 
   useEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
     camera.position.set(...cameraPosition);
     camera.lookAt(...cameraTarget);
+  }, []);
+
+  useFrame(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    camera.position.lerp(desiredPosition.current, 0.085);
+    camera.lookAt(desiredTarget.current);
     camera.updateProjectionMatrix();
-  }, [camera, cameraPosition, cameraTarget]);
+  });
 
   return (
     <>
@@ -105,6 +117,7 @@ function SceneContents({
       <PlayerCameraTile position={cameraTilePosition} />
       <TileGrid
         tiles={tiles}
+        tilePlacements={tilePlacements}
         introState={{
           stage: introState,
           tileOrder: introTileIds,
@@ -125,10 +138,27 @@ function SceneContents({
 export default function Board3D({ tiles }: Board3DProps) {
   const [introStage, setIntroStage] = useState<IntroStage>('idle');
   const [introDropCount, setIntroDropCount] = useState(0);
-  const rows = Math.ceil(tiles.length / TILE_COLUMNS);
+  const rows = Math.max(1, Math.ceil(tiles.length / TILE_COLUMNS));
   const cameraTileZ = (rows - 1) / 2 * TILE_SPACING + CAMERA_TILE_FRONT_GAP;
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
+
+  const tilePlacements = useMemo(() => {
+    return tiles.map((tile, index) => {
+      const row = Math.floor(index / TILE_COLUMNS);
+      const col = index % TILE_COLUMNS;
+      const itemsInRow = Math.min(TILE_COLUMNS, tiles.length - row * TILE_COLUMNS);
+      const x = (col - (itemsInRow - 1) / 2) * TILE_SPACING;
+      const z = ((rows - 1) / 2 - row) * TILE_SPACING;
+      const y = row * STAIR_STEP;
+      return { tileId: tile.id, position: [x, y, z] as [number, number, number] };
+    });
+  }, [rows, tiles]);
+
+  const tilePlacementMap = useMemo(
+    () => new Map(tilePlacements.map(({ tileId, position }) => [tileId, position])),
+    [tilePlacements]
+  );
 
   const introTileIds = useMemo(
     () => tiles.slice(0, MAX_INTRO_TILE_COUNT).map((tile) => tile.id),
@@ -137,18 +167,34 @@ export default function Board3D({ tiles }: Board3DProps) {
 
   const overviewTargetY = (rows - 1) * STAIR_STEP * 0.5 + OVERVIEW_TARGET_Y_OFFSET;
   const gridHalfDepth = ((rows - 1) / 2) * TILE_SPACING;
-  const cameraTarget: [number, number, number] = useMemo(
-    () => [0, overviewTargetY, 0],
-    [overviewTargetY]
+  const remainingTiles = useMemo(
+    () => tiles.filter((tile) => !tile.isEliminated && tile.isVisible !== false),
+    [tiles]
   );
-  const cameraPosition: [number, number, number] = useMemo(
-    () => [
+  const finalTilePosition = useMemo(() => {
+    if (remainingTiles.length === 1) {
+      return tilePlacementMap.get(remainingTiles[0]?.id);
+    }
+    return undefined;
+  }, [remainingTiles, tilePlacementMap]);
+
+  const cameraTarget: [number, number, number] = useMemo(() => {
+    if (finalTilePosition) {
+      return [finalTilePosition[0], finalTilePosition[1] + 0.15, finalTilePosition[2]];
+    }
+    return [0, overviewTargetY, 0];
+  }, [finalTilePosition, overviewTargetY]);
+
+  const cameraPosition: [number, number, number] = useMemo(() => {
+    if (finalTilePosition) {
+      return [finalTilePosition[0], finalTilePosition[1] + 1.4, finalTilePosition[2] + 3.8];
+    }
+    return [
       0,
       overviewTargetY + OVERVIEW_POSITION_Y_PADDING,
       gridHalfDepth + CAMERA_TILE_FRONT_GAP + OVERVIEW_POSITION_Z_PADDING
-    ],
-    [gridHalfDepth, overviewTargetY]
-  );
+    ];
+  }, [finalTilePosition, gridHalfDepth, overviewTargetY]);
 
   useEffect(() => {
     if (introTileIds.length) {
@@ -175,6 +221,7 @@ export default function Board3D({ tiles }: Board3DProps) {
       <Canvas camera={{ position: cameraPosition, fov: 42 }} shadows>
         <SceneContents
           tiles={tiles}
+          tilePlacements={tilePlacementMap}
           cameraTilePosition={cameraTilePosition}
           cameraPosition={cameraPosition}
           cameraTarget={cameraTarget}

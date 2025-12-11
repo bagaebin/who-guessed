@@ -112,6 +112,7 @@ function baseSlotFromSeed(index: number): CharacterTile {
     image: PLACEHOLDER_IMAGE,
     isVisible: index === 0,
     isGenerated: false,
+    isGenerating: false,
     isEliminated: false,
     core: { ...seed.core }
   };
@@ -317,7 +318,8 @@ async function processGenerationQueue(
             ...draft.tiles[tileIndex],
             core: update.core,
             image: update.image,
-            isGenerated: true
+            isGenerated: true,
+            isGenerating: false
           };
         }
       });
@@ -337,6 +339,10 @@ async function processGenerationQueue(
     console.warn(statusMessage, error);
     set((draft) => {
       draft.statusMessage = statusMessage;
+      const tileIndex = draft.tiles.findIndex((tile) => tile.id === job.chainId);
+      if (tileIndex >= 0) {
+        draft.tiles[tileIndex].isGenerating = false;
+      }
     });
   } finally {
     set((draft) => {
@@ -348,6 +354,11 @@ async function processGenerationQueue(
       const shouldLock =
         draft.generationAnswers >= FINAL_SLOT_COUNT && (pendingCount > 0 || generatedCount < FINAL_SLOT_COUNT);
       draft.isInputLocked = shouldLock;
+
+      const tileIndex = draft.tiles.findIndex((tile) => tile.id === job.chainId);
+      if (tileIndex >= 0) {
+        draft.tiles[tileIndex].isGenerating = false;
+      }
 
       if (!shouldLock) {
         startEliminationIfReady(draft);
@@ -473,6 +484,7 @@ export const useGameStore = create<GameState & {
               ...draft.tiles[tileIndex],
               image: PLACEHOLDER_IMAGE,
               isGenerated: false,
+              isGenerating: true,
               isVisible: true
             };
           }

@@ -29,6 +29,13 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   const introEnabled = Boolean(introAnimation?.isActive);
   const shouldStartIntro = introEnabled && !introStartedRef.current;
 
+  const [targetX, targetY, targetZ] = useMemo(() => {
+    if (Array.isArray(position)) {
+      return [position[0] ?? 0, position[1] ?? 0, position[2] ?? 0];
+    }
+    return [0, 0, 0];
+  }, [position]);
+
   useEffect(() => {
     if (introEnabled && !introStartedRef.current) {
       introStartedRef.current = true;
@@ -36,7 +43,7 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
         ? parseInt(import.meta.env.VITE_TILE_DROP_DELAY, 10)
         : introAnimation?.delayMs ?? introDelayRef.current;
       // Calculate unique delay based on index
-        introDelayRef.current = baseDelay + (introAnimation?.index ?? 0) * 50; // Increment delay by index
+      introDelayRef.current = baseDelay + (introAnimation?.index ?? 0) * 50; // Increment delay by index
       introHeightRef.current = introAnimation?.initialHeight ?? introHeightRef.current;
 
       // Debugging: Log index and calculated delayMs
@@ -75,19 +82,27 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
 
   const texture = useTexture(tile.image);
 
-  const [baseX, baseY, baseZ] = useMemo(() => {
-    if (Array.isArray(position)) {
-      return [position[0] ?? 0, position[1] ?? 0, position[2] ?? 0];
-    }
-    return [0, 0, 0];
-  }, [position]);
+  const { baseX, baseY, baseZ } = useSpring({
+    baseX: targetX,
+    baseY: targetY,
+    baseZ: targetZ,
+    config: { mass: 1.1, tension: 180, friction: 18 }
+  });
+
+  const { bounceScale } = useSpring({
+    bounceScale: tile.isGenerating ? 1.08 : 1,
+    loop: tile.isGenerating ? { reverse: true } : false,
+    config: { tension: 420, friction: 8 },
+    pause: !tile.isGenerating
+  });
 
   return (
     <a.group
       position-x={baseX}
-      position-y={to([yOffset, dropOffset], (y, drop) => baseY + y + drop)}
+      position-y={to([baseY, yOffset, dropOffset], (base, y, drop) => base + y + drop)}
       position-z={baseZ}
       rotation-x={rotationX}
+      scale={bounceScale}
     >
       <RoundedBox args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} radius={style.borderRadius} smoothness={6} castShadow receiveShadow>
         <a.meshStandardMaterial
