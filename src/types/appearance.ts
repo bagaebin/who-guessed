@@ -117,6 +117,7 @@ export type GameState = {
   generationLogs: GenerationLogEntry[];
   pendingGenerations: PendingGenerationJob[];
   generationInFlight: boolean;
+  activeGenerationId: string | null;
   questionTimerId: ReturnType<typeof setTimeout> | null;
 };
 

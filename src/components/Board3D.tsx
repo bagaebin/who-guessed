@@ -1,6 +1,6 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { SpringValue, useSpring } from '@react-spring/three';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
-import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
 import TileCard from './TileCard';
 import PlayerCameraTile from './PlayerCameraTile';
@@ -8,6 +8,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type Board3DProps = {
   tiles: CharacterTile[];
+  generatingIds: Set<string>;
+  focusTileId?: string;
 };
 
 type IntroStage = 'idle' | 'dropping' | 'done';
@@ -30,7 +32,8 @@ const OVERVIEW_POSITION_Y_PADDING = 4;
 
 function TileGrid({
   tiles,
-  introState
+  introState,
+  generatingIds
 }: {
   tiles: CharacterTile[];
   introState?: {
@@ -38,6 +41,7 @@ function TileGrid({
     tileOrder: string[];
     onTileDropComplete: () => void;
   };
+  generatingIds: Set<string>;
 }) {
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
   const introTileIndexMap = useMemo(() => {
@@ -65,40 +69,75 @@ function TileGrid({
                   introState?.stage === 'dropping' ? introState?.onTileDropComplete : undefined
               }
             : undefined;
-        return <TileCard key={tile.id} tile={tile} position={[x, y, z]} introAnimation={introAnimation} />;
+        return (
+          <TileCard
+            key={tile.id}
+            tile={tile}
+            position={[x, y, z]}
+            introAnimation={introAnimation}
+            isGenerating={generatingIds.has(tile.id)}
+          />
+        );
       })}
     </group>
   );
 }
 
-function SceneContents({
-  tiles,
-  cameraTilePosition,
-  cameraPosition,
-  cameraTarget,
-  introState,
-  introTileIds,
-  onIntroTileComplete
+function CameraRig({
+  cameraValues
 }: {
-  tiles: CharacterTile[];
-  cameraTilePosition: [number, number, number];
-  cameraPosition: [number, number, number];
-  cameraTarget: [number, number, number];
-  introState: IntroStage;
-  introTileIds: string[];
-  onIntroTileComplete: () => void;
+  cameraValues: {
+    camX: SpringValue<number>;
+    camY: SpringValue<number>;
+    camZ: SpringValue<number>;
+    tgtX: SpringValue<number>;
+    tgtY: SpringValue<number>;
+    tgtZ: SpringValue<number>;
+  };
 }) {
   const camera = useThree((state) => state.camera);
 
-  useEffect(() => {
-    if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    camera.position.set(...cameraPosition);
-    camera.lookAt(...cameraTarget);
-    camera.updateProjectionMatrix();
-  }, [camera, cameraPosition, cameraTarget]);
+  useFrame(() => {
+    camera.position.set(
+      cameraValues.camX.get(),
+      cameraValues.camY.get(),
+      cameraValues.camZ.get()
+    );
+    camera.lookAt(cameraValues.tgtX.get(), cameraValues.tgtY.get(), cameraValues.tgtZ.get());
+  });
 
+  return null;
+}
+
+function SceneContents({
+  tiles,
+  cameraTilePosition,
+  cameraTarget,
+  cameraSpring,
+  introState,
+  introTileIds,
+  onIntroTileComplete,
+  generatingIds
+}: {
+  tiles: CharacterTile[];
+  cameraTilePosition: [number, number, number];
+  cameraTarget: [number, number, number];
+  cameraSpring: {
+    camX: SpringValue<number>;
+    camY: SpringValue<number>;
+    camZ: SpringValue<number>;
+    tgtX: SpringValue<number>;
+    tgtY: SpringValue<number>;
+    tgtZ: SpringValue<number>;
+  };
+  introState: IntroStage;
+  introTileIds: string[];
+  onIntroTileComplete: () => void;
+  generatingIds: Set<string>;
+}) {
   return (
     <>
+      <CameraRig cameraValues={cameraSpring} />
       <hemisphereLight args={["#a3c4f9", "#4f6b8f", 0.85]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
@@ -110,6 +149,7 @@ function SceneContents({
           tileOrder: introTileIds,
           onTileDropComplete: onIntroTileComplete
         }}
+        generatingIds={generatingIds}
       />
       <ContactShadows
         position={[0, -0.8, 0]}
@@ -122,7 +162,7 @@ function SceneContents({
   );
 }
 
-export default function Board3D({ tiles }: Board3DProps) {
+export default function Board3D({ tiles, generatingIds, focusTileId }: Board3DProps) {
   const [introStage, setIntroStage] = useState<IntroStage>('idle');
   const [introDropCount, setIntroDropCount] = useState(0);
   const rows = Math.ceil(tiles.length / TILE_COLUMNS);
@@ -150,6 +190,51 @@ export default function Board3D({ tiles }: Board3DProps) {
     [gridHalfDepth, overviewTargetY]
   );
 
+  const focusTileIndex = focusTileId ? tiles.findIndex((tile) => tile.id === focusTileId) : -1;
+  const focusPosition = useMemo(() => {
+    if (focusTileIndex < 0) return null;
+    const row = Math.floor(focusTileIndex / TILE_COLUMNS);
+    const col = focusTileIndex % TILE_COLUMNS;
+    const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+    const z = ((rows - 1) / 2 - row) * TILE_SPACING;
+    const y = row * STAIR_STEP;
+    return [x, y, z] as [number, number, number];
+  }, [focusTileIndex, rows]);
+
+  const focusCameraTarget: [number, number, number] | null = useMemo(() => {
+    if (!focusPosition) return null;
+    return [focusPosition[0], focusPosition[1] + 0.4, focusPosition[2]];
+  }, [focusPosition]);
+
+  const focusCameraPosition: [number, number, number] | null = useMemo(() => {
+    if (!focusPosition) return null;
+    return [focusPosition[0], focusPosition[1] + 1.35, focusPosition[2] + 3.4];
+  }, [focusPosition]);
+
+  const [cameraSpring, cameraApi] = useSpring(() => ({
+    camX: cameraPosition[0],
+    camY: cameraPosition[1],
+    camZ: cameraPosition[2],
+    tgtX: cameraTarget[0],
+    tgtY: cameraTarget[1],
+    tgtZ: cameraTarget[2],
+    config: { mass: 1.2, tension: 90, friction: 20 }
+  }));
+
+  useEffect(() => {
+    const nextPosition = focusCameraPosition ?? cameraPosition;
+    const nextTarget = focusCameraTarget ?? cameraTarget;
+
+    cameraApi.start({
+      camX: nextPosition[0],
+      camY: nextPosition[1],
+      camZ: nextPosition[2],
+      tgtX: nextTarget[0],
+      tgtY: nextTarget[1],
+      tgtZ: nextTarget[2]
+    });
+  }, [cameraApi, cameraPosition, cameraTarget, focusCameraPosition, focusCameraTarget]);
+
   useEffect(() => {
     if (introTileIds.length) {
       setIntroStage('dropping');
@@ -176,11 +261,12 @@ export default function Board3D({ tiles }: Board3DProps) {
         <SceneContents
           tiles={tiles}
           cameraTilePosition={cameraTilePosition}
-          cameraPosition={cameraPosition}
           cameraTarget={cameraTarget}
+          cameraSpring={cameraSpring}
           introState={introStage}
           introTileIds={introTileIds}
           onIntroTileComplete={handleTileDropComplete}
+          generatingIds={generatingIds}
         />
       </Canvas>
     </div>
