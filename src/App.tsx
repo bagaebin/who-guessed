@@ -72,10 +72,9 @@ export default function App() {
 
     const startBackgroundMusic = async () => {
       if (bgmStarted) return;
-      bgmStarted = true;
-      bgm.currentTime = 0;
       try {
         await bgm.play();
+        bgmStarted = true;
       } catch (e) {
         console.error('Failed to start background music:', e);
       }
@@ -100,12 +99,24 @@ export default function App() {
         await intro1.play();
       } catch (e) {
         console.error('Audio autoplay failed:', e);
+        // If intro fails, try BGM as fallback
         startBackgroundMusic();
       }
     };
 
-    startBackgroundMusic();
+    // Try to play immediately
     playAudio();
+
+    // Also add interaction listeners to handle autoplay policy
+    const handleInteraction = () => {
+      playAudio();
+      // Once triggered, remove listeners
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
 
     return () => {
       intro1.pause();
@@ -116,6 +127,8 @@ export default function App() {
       bgm.currentTime = 0;
       intro1.removeEventListener('ended', handleIntro1End);
       intro2.removeEventListener('ended', handleIntro2End);
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
     };
   }, []);
 
@@ -142,7 +155,7 @@ export default function App() {
           src="/logo_guessed-who.png"
           alt="Who Guessed? Logo"
           style={{
-            width: 'clamp(150px, 80vw, 300px)', // Responsive size: min 150px, max 300px, 20% of viewport width
+            width: 'clamp(200px, 80vw, 360px)', // Responsive size: min 150px, max 300px, 20% of viewport width
             height: 'auto', // Maintain aspect ratio
           }}
         />
