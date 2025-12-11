@@ -17,7 +17,7 @@ const TILE_COLUMNS = 5;
 // 타일 사이 간격
 const TILE_SPACING = 2.2;
 // Camera 타일과 앞열 타일 사이 간격
-const CAMERA_TILE_FRONT_GAP = TILE_SPACING * 1.6;
+const CAMERA_TILE_FRONT_GAP = TILE_SPACING * 1.0;
 // Camera 기본 위치와 타일 위치 조정값
 const parsedCameraZAdjust = Number.parseFloat(import.meta.env.VITE_CAMERA_TILE_Z_ADJUST ?? '');
 const CAMERA_TILE_Y_ADJUST = Number.isFinite(parsedCameraZAdjust) ? parsedCameraZAdjust : 0;
@@ -25,7 +25,7 @@ const parsedRowStep = Number.parseFloat(import.meta.env.VITE_TILE_ROW_STEP ?? ''
 const STAIR_STEP = Number.isFinite(parsedRowStep) ? parsedRowStep : 0.32;
 const MAX_INTRO_TILE_COUNT = 24;
 const OVERVIEW_TARGET_Y_OFFSET = 0.6;
-const OVERVIEW_POSITION_Z_PADDING = 10;
+const OVERVIEW_POSITION_Z_PADDING = 13;
 const OVERVIEW_POSITION_Y_PADDING = 4.2;
 
 function TileGrid({
