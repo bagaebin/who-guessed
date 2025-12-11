@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { inferPlayerAppearance } from '../api/appearanceClient';
+import { analyzeGeneratedImages } from '../api/imageAnalysisClient';
 import { requestImages } from '../api/imageClient';
 import { initialTiles } from '../data/tiles';
 import { questionPool } from '../data/questions';
@@ -48,14 +49,14 @@ function getNextQuestion(index: number): { nextQuestion: string; nextIndex: numb
 const generationTargets: Record<GenerationPhase, string[]> = {
   gen1: ['chain-1'],
   gen2: ['chain-2', 'chain-3', 'chain-4'],
-  gen3: chainIds.slice(0, 8),
+  gen3: chainIds.slice(4, 12),
   gen4: chainIds
 };
 
 const visibilityByPhase: Record<GamePhase, Set<string>> = {
   gen1: new Set(['chain-1']),
   gen2: new Set(['chain-1', 'chain-2', 'chain-3', 'chain-4']),
-  gen3: new Set(chainIds.slice(0, 8)),
+  gen3: new Set(chainIds),
   gen4: new Set(chainIds),
   early: new Set(chainIds),
   mid: new Set(chainIds),
@@ -138,8 +139,8 @@ function remixCore(base: AppearanceCore, prompt: string, salt: string): Appearan
 function buildPromptFromTurn(question: string, answer: string): string {
   const fallbackQuestion = question?.trim() || 'the current question';
   const trimmedAnswer = answer?.trim() || 'no answer provided yet';
-  const descriptor = `a person described as: "${trimmedAnswer}" (answering: "${fallbackQuestion}")`;
-  return `realistic ID photo on a white background, centered bust portrait, ${descriptor}`;
+  const descriptor = `a real human person who would answer "${trimmedAnswer}" to the question "${fallbackQuestion}", described only through appearance and mood (never as text)`;
+  return `realistic ID photo, centered bust portrait on a clean white background. The image must depict ${descriptor}, avoiding animals or fictional beings and containing absolutely no written text, captions, labels, or symbols.`;
 }
 
 function determineVisibleIds(phase: GamePhase): Set<string> {
@@ -175,13 +176,21 @@ async function generateAppearanceForChains(
   const prompt = buildPromptFromTurn(question, answer);
   const fetchedImages = await requestImages(prompt, chainList);
 
-  return chainList.map((chainId) => {
-    const baseCore = selectBaseCore(chainId, tiles);
-    const derivedCore = remixCore(baseCore, prompt, `${chainId}-${stage}`);
+  const stageImages = chainList.map((chainId) => {
     const slotIndex = chainIds.indexOf(chainId) + 1;
     const fallback = createSvgPlaceholder(`${stage.toUpperCase()}-${slotIndex}`);
     const image = fetchedImages[chainId] ?? fallback;
-    return { chainId, core: derivedCore, image, prompt };
+    return { id: chainId, image };
+  });
+
+  const analyzedCores = await analyzeGeneratedImages(stageImages, prompt);
+
+  return stageImages.map(({ id, image }) => {
+    const baseCore = selectBaseCore(id, tiles);
+    const derivedCore = remixCore(baseCore, prompt, `${id}-${stage}`);
+    const analyzedCore = analyzedCores[id];
+
+    return { chainId: id, core: analyzedCore ?? derivedCore, image, prompt };
   });
 }
 
