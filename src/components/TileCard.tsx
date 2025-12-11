@@ -28,6 +28,7 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   const introHeightRef = useRef(introAnimation?.initialHeight ?? 4.5);
   const introEnabled = Boolean(introAnimation?.isActive);
   const shouldStartIntro = introEnabled && !introStartedRef.current;
+  const isGenerating = !tile.isGenerated;
 
   useEffect(() => {
     if (introEnabled && !introStartedRef.current) {
@@ -73,6 +74,14 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
     immediate: (name) => !introEnabled && (name === 'dropOffset' || name === 'introOpacity')
   });
 
+  const { bounceOffset } = useSpring({
+    from: { bounceOffset: 0 },
+    to: { bounceOffset: isGenerating ? 0.18 : 0 },
+    loop: isGenerating ? { reverse: true } : false,
+    config: { tension: 160, friction: 6 },
+    immediate: !isGenerating
+  });
+
   const texture = useTexture(tile.image);
 
   const [baseX, baseY, baseZ] = useMemo(() => {
@@ -85,7 +94,7 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   return (
     <a.group
       position-x={baseX}
-      position-y={to([yOffset, dropOffset], (y, drop) => baseY + y + drop)}
+      position-y={to([yOffset, dropOffset, bounceOffset], (y, drop, bounce) => baseY + y + drop + bounce)}
       position-z={baseZ}
       rotation-x={rotationX}
     >

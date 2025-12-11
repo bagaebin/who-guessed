@@ -1,4 +1,4 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
@@ -71,6 +71,16 @@ function TileGrid({
   );
 }
 
+function getTilePosition(index: number, totalTiles: number): [number, number, number] {
+  const rows = Math.ceil(totalTiles / TILE_COLUMNS);
+  const row = Math.floor(index / TILE_COLUMNS);
+  const col = index % TILE_COLUMNS;
+  const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+  const z = ((rows - 1) / 2 - row) * TILE_SPACING;
+  const y = row * STAIR_STEP;
+  return [x, y, z];
+}
+
 function SceneContents({
   tiles,
   cameraTilePosition,
@@ -89,6 +99,23 @@ function SceneContents({
   onIntroTileComplete: () => void;
 }) {
   const camera = useThree((state) => state.camera);
+  const remainingTiles = useMemo(() => tiles.filter((tile) => !tile.isEliminated), [tiles]);
+  const focusTileIndex = useMemo(() => {
+    if (remainingTiles.length !== 1) return null;
+    const [remaining] = remainingTiles;
+    return tiles.findIndex((tile) => tile.id === remaining.id);
+  }, [remainingTiles, tiles]);
+
+  const outroCameraTarget = useMemo(() => {
+    if (focusTileIndex === null) return cameraTarget;
+    return getTilePosition(focusTileIndex, tiles.length);
+  }, [cameraTarget, focusTileIndex, tiles.length]);
+
+  const outroCameraPosition = useMemo(() => {
+    if (focusTileIndex === null) return cameraPosition;
+    const [x, y, z] = getTilePosition(focusTileIndex, tiles.length);
+    return [x, y + 1.6, z + 3.2] as [number, number, number];
+  }, [cameraPosition, focusTileIndex, tiles.length]);
 
   useEffect(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
@@ -96,6 +123,19 @@ function SceneContents({
     camera.lookAt(...cameraTarget);
     camera.updateProjectionMatrix();
   }, [camera, cameraPosition, cameraTarget]);
+
+  useFrame((state, delta) => {
+    if (!(state.camera instanceof THREE.PerspectiveCamera)) return;
+    const desiredPosition = new THREE.Vector3(...outroCameraPosition);
+    const desiredTarget = new THREE.Vector3(...outroCameraTarget);
+
+    state.camera.position.lerp(desiredPosition, 1 - Math.pow(0.02, delta));
+    const currentTarget = new THREE.Vector3();
+    state.camera.getWorldDirection(currentTarget);
+    const lookAtTarget = new THREE.Vector3().copy(state.camera.position).add(currentTarget);
+    lookAtTarget.lerp(desiredTarget, 1 - Math.pow(0.02, delta));
+    state.camera.lookAt(lookAtTarget);
+  });
 
   return (
     <>

@@ -5,16 +5,16 @@ import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
 import './styles.css';
 
-function FinalReveal() {
-  const { tiles } = useGameStore();
+function FinalOutro() {
+  const { tiles, reset } = useGameStore();
   const remaining = tiles.filter((t) => !t.isEliminated);
   if (remaining.length !== 1) return null;
-  const tile = remaining[0];
+
   return (
-    <div className="final-reveal">
-      <h2>Predicted Look-alike</h2>
-      <p>Tile {tile.id} was selected.</p>
-      <img src={tile.image} alt={tile.id} />
+    <div className="final-outro">
+      <button className="replay-button" onClick={reset}>
+        Replay
+      </button>
     </div>
   );
 }
@@ -171,8 +171,8 @@ export default function App() {
           </button>
         </div>
         <UiPanel />
-        <FinalReveal />
       </div>
+      <FinalOutro />
     </div>
   );
 }
