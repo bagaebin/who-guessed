@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { eliminationRangeForPhase } from '../utils/phase';
 import { CharacterTile, EliminationPhase, LlmInferenceResult } from '../types/appearance';
 
-const appearanceCoreSchema = z.object({
+export const appearanceCoreSchema = z.object({
   gender: z.enum(['male', 'female', 'non_binary', 'transgender']),
   race: z.enum([
     'east_asian',
