@@ -31,13 +31,17 @@ export default function App() {
     to: { opacity: showLogo ? 1 : 0 }, // Explicitly define the target opacity
     config: { duration: 1000 },
     onChange: (props) => {
-      console.log('Spring props:', props); // Log the entire props object for debugging
-      console.log('Opacity is changing:', props.opacity); // Log opacity changes
+      if (import.meta.env.DEV) {
+        console.debug('Spring props:', props); // Log the entire props object for debugging
+        console.debug('Opacity is changing:', props.opacity); // Log opacity changes
+      }
     },
     onRest: () => {
-      console.log('Animation complete. showLogo:', showLogo); // Log when animation completes
-      if (!showLogo) {
-        console.log('Fade-out complete, keeping logo in DOM.');
+      if (import.meta.env.DEV) {
+        console.debug('Animation complete. showLogo:', showLogo); // Log when animation completes
+        if (!showLogo) {
+          console.debug('Fade-out complete, keeping logo in DOM.');
+        }
       }
     },
   });
@@ -69,6 +73,9 @@ export default function App() {
     bgm.currentTime = 0;
 
     let bgmStarted = false;
+    let introAttempts = 0;
+    const MAX_RETRIES = 3;
+    let handleInteraction: (() => void) | null = null;
 
     const startBackgroundMusic = async () => {
       if (bgmStarted) return;
@@ -76,7 +83,9 @@ export default function App() {
         await bgm.play();
         bgmStarted = true;
       } catch (e) {
-        console.error('Failed to start background music:', e);
+        if (import.meta.env.DEV) {
+          console.error('Failed to start background music:', e);
+        }
       }
     };
 
@@ -86,7 +95,9 @@ export default function App() {
 
     const handleIntro1End = () => {
       intro2.play().catch((e) => {
-        console.error('Failed to play second intro:', e);
+        if (import.meta.env.DEV) {
+          console.error('Failed to play second intro:', e);
+        }
         startBackgroundMusic();
       });
     };
@@ -95,28 +106,37 @@ export default function App() {
     intro2.addEventListener('ended', handleIntro2End);
 
     const playAudio = async () => {
+      if (introAttempts >= MAX_RETRIES) return;
+      introAttempts += 1;
       try {
         await intro1.play();
+        if (handleInteraction) {
+          window.removeEventListener('click', handleInteraction);
+          window.removeEventListener('keydown', handleInteraction);
+          handleInteraction = null;
+        }
       } catch (e) {
-        console.error('Audio autoplay failed:', e);
+        if (import.meta.env.DEV) {
+          console.error('Audio autoplay failed:', e);
+        }
         // If intro fails, try BGM as fallback
         startBackgroundMusic();
       }
+    };
+
+    handleInteraction = () => {
+      playAudio();
     };
 
     // Try to play immediately
     playAudio();
 
     // Also add interaction listeners to handle autoplay policy
-    const handleInteraction = () => {
-      playAudio();
-      // Once triggered, remove listeners
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
-    };
 
-    window.addEventListener('click', handleInteraction);
-    window.addEventListener('keydown', handleInteraction);
+    if (handleInteraction) {
+      window.addEventListener('click', handleInteraction);
+      window.addEventListener('keydown', handleInteraction);
+    }
 
     return () => {
       intro1.pause();
@@ -127,8 +147,10 @@ export default function App() {
       bgm.currentTime = 0;
       intro1.removeEventListener('ended', handleIntro1End);
       intro2.removeEventListener('ended', handleIntro2End);
-      window.removeEventListener('click', handleInteraction);
-      window.removeEventListener('keydown', handleInteraction);
+      if (handleInteraction) {
+        window.removeEventListener('click', handleInteraction);
+        window.removeEventListener('keydown', handleInteraction);
+      }
     };
   }, []);
 

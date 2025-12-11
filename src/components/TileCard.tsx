@@ -28,6 +28,7 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   const introHeightRef = useRef(introAnimation?.initialHeight ?? 4.5);
   const introEnabled = Boolean(introAnimation?.isActive);
   const shouldStartIntro = introEnabled && !introStartedRef.current;
+  const textureCacheRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (introEnabled && !introStartedRef.current) {
@@ -40,7 +41,9 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
       introHeightRef.current = introAnimation?.initialHeight ?? introHeightRef.current;
 
       // Debugging: Log index and calculated delayMs
-      console.log(`Tile index: ${introAnimation?.index}, delayMs: ${introDelayRef.current}`);
+      if (import.meta.env.DEV) {
+        console.debug(`Tile index: ${introAnimation?.index}, delayMs: ${introDelayRef.current}`);
+      }
     }
   }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight, introAnimation?.index]);
 
@@ -72,6 +75,13 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
     },
     immediate: (name) => !introEnabled && (name === 'dropOffset' || name === 'introOpacity')
   });
+
+  useEffect(() => {
+    if (tile.image && !textureCacheRef.current.has(tile.image)) {
+      useTexture.preload(tile.image);
+      textureCacheRef.current.add(tile.image);
+    }
+  }, [tile.image]);
 
   const texture = useTexture(tile.image);
 

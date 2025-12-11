@@ -63,10 +63,6 @@ function scheduleNextQuestion(
     clearTimeout(currentTimer);
   }
 
-  set((draft) => {
-    draft.isInputLocked = true;
-  });
-
   const timerId = setTimeout(() => {
     const next = drawRandomQuestion(get().askedQuestionIds);
     set((draft) => {
@@ -90,6 +86,7 @@ function scheduleNextQuestion(
   }, QUESTION_ROTATION_DELAY_MS);
 
   set((draft) => {
+    draft.isInputLocked = true;
     draft.questionTimerId = timerId as unknown as ReturnType<typeof setTimeout>;
   });
 }
@@ -278,85 +275,92 @@ async function processGenerationQueue(
   get: () => GameState,
   set: (fn: (draft: GameState) => void) => void
 ) {
-  const state = get();
-  if (state.generationInFlight) return;
-  const job = state.pendingGenerations[0];
-  if (!job) {
+  while (true) {
+    const state = get();
+    if (state.generationInFlight) return;
+    const job = state.pendingGenerations[0];
+
+    if (!job) {
+      set((draft) => {
+        draft.isLoading = false;
+        if (!draft.generationInFlight && draft.generationAnswers < FINAL_SLOT_COUNT) {
+          draft.isInputLocked = false;
+        }
+        startEliminationIfReady(draft);
+      });
+      return;
+    }
+
     set((draft) => {
-      draft.isLoading = false;
-      if (!draft.generationInFlight && draft.generationAnswers < FINAL_SLOT_COUNT) {
-        draft.isInputLocked = false;
-      }
-      startEliminationIfReady(draft);
+      draft.generationInFlight = true;
+      draft.isLoading = true;
     });
-    return;
-  }
 
-  set((draft) => {
-    draft.generationInFlight = true;
-    draft.isLoading = true;
-  });
+    try {
+      const updates = await generateAppearanceForChains(
+        [job.chainId],
+        job.questionText,
+        job.answer,
+        get().tiles,
+        job.phase
+      );
 
-  try {
-    const updates = await generateAppearanceForChains([job.chainId], job.questionText, job.answer, state.tiles, job.phase);
+      const generationLog = {
+        stage: job.phase,
+        question: job.questionText,
+        answer: job.answer,
+        prompt: updates[0]?.prompt ?? '',
+        outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
+        timestamp: Date.now()
+      } as const;
 
-    const generationLog = {
-      stage: job.phase,
-      question: job.questionText,
-      answer: job.answer,
-      prompt: updates[0]?.prompt ?? '',
-      outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
-      timestamp: Date.now()
-    } as const;
+      set((draft) => {
+        updates.forEach((update) => {
+          const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
+          if (tileIndex >= 0) {
+            draft.tiles[tileIndex] = {
+              ...draft.tiles[tileIndex],
+              core: update.core,
+              image: update.image,
+              isGenerated: true
+            };
+          }
+        });
 
-    set((draft) => {
-      updates.forEach((update) => {
-        const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
-        if (tileIndex >= 0) {
-          draft.tiles[tileIndex] = {
-            ...draft.tiles[tileIndex],
-            core: update.core,
-            image: update.image,
-            isGenerated: true
-          };
+        draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
+        draft.playerHistory.push(job.answer);
+        draft.generationLogs.unshift(generationLog);
+        draft.lastEliminatedIds = [];
+        draft.lastReasoning = undefined;
+        draft.round += 1;
+        draft.playerText = '';
+        startEliminationIfReady(draft);
+        draft.statusMessage = `Generated ${updates.length} images from the prompt built for "${job.questionText}".`;
+      });
+    } catch (error) {
+      const statusMessage = formatGenerationError(error);
+      console.warn(statusMessage, error);
+      set((draft) => {
+        draft.statusMessage = statusMessage;
+      });
+    } finally {
+      set((draft) => {
+        draft.pendingGenerations.shift();
+        draft.generationInFlight = false;
+        draft.isLoading = false;
+        const pendingCount = draft.pendingGenerations.length;
+        const generatedCount = draft.tiles.filter((tile) => tile.isGenerated).length;
+        const shouldLock =
+          draft.generationAnswers >= FINAL_SLOT_COUNT && (pendingCount > 0 || generatedCount < FINAL_SLOT_COUNT);
+        draft.isInputLocked = shouldLock;
+
+        if (!shouldLock) {
+          startEliminationIfReady(draft);
+        } else {
+          updatePhaseForUnlockedSlots(draft);
         }
       });
-
-      draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
-      draft.playerHistory.push(job.answer);
-      draft.generationLogs.unshift(generationLog);
-      draft.lastEliminatedIds = [];
-      draft.lastReasoning = undefined;
-      draft.round += 1;
-      draft.playerText = '';
-      startEliminationIfReady(draft);
-      draft.statusMessage = `Generated ${updates.length} images from the prompt built for "${job.questionText}".`;
-    });
-  } catch (error) {
-    const statusMessage = formatGenerationError(error);
-    console.warn(statusMessage, error);
-    set((draft) => {
-      draft.statusMessage = statusMessage;
-    });
-  } finally {
-    set((draft) => {
-      draft.pendingGenerations.shift();
-      draft.generationInFlight = false;
-      draft.isLoading = false;
-      const pendingCount = draft.pendingGenerations.length;
-      const generatedCount = draft.tiles.filter((tile) => tile.isGenerated).length;
-      const shouldLock =
-        draft.generationAnswers >= FINAL_SLOT_COUNT && (pendingCount > 0 || generatedCount < FINAL_SLOT_COUNT);
-      draft.isInputLocked = shouldLock;
-
-      if (!shouldLock) {
-        startEliminationIfReady(draft);
-      } else {
-        updatePhaseForUnlockedSlots(draft);
-      }
-    });
-
-    await processGenerationQueue(get, set);
+    }
   }
 }
 
