@@ -59,35 +59,76 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const intro1 = new Audio('/who-guessed.mp3');
+    const intro2 = new Audio('/you-are-guessed.mp3');
     const bgm = new Audio('/bgm_Who Guessed.mp3');
     bgm.loop = true;
     bgm.volume = 0.3;
+    intro1.currentTime = 0;
+    intro2.currentTime = 0;
+    bgm.currentTime = 0;
 
-    const intro1 = new Audio('/who-guessed.mp3');
-    const intro2 = new Audio('/you-are-guessed.mp3');
+    let bgmStarted = false;
 
-    const playAudio = async () => {
+    const startBackgroundMusic = async () => {
+      if (bgmStarted) return;
       try {
         await bgm.play();
-        await intro1.play();
-        intro1.onended = async () => {
-          try {
-            await intro2.play();
-          } catch (e) {
-            console.error('Failed to play second intro:', e);
-          }
-        };
+        bgmStarted = true;
       } catch (e) {
-        console.error('Audio autoplay failed:', e);
+        console.error('Failed to start background music:', e);
       }
     };
 
+    const handleIntro2End = () => {
+      startBackgroundMusic();
+    };
+
+    const handleIntro1End = () => {
+      intro2.play().catch((e) => {
+        console.error('Failed to play second intro:', e);
+        startBackgroundMusic();
+      });
+    };
+
+    intro1.addEventListener('ended', handleIntro1End);
+    intro2.addEventListener('ended', handleIntro2End);
+
+    const playAudio = async () => {
+      try {
+        await intro1.play();
+      } catch (e) {
+        console.error('Audio autoplay failed:', e);
+        // If intro fails, try BGM as fallback
+        startBackgroundMusic();
+      }
+    };
+
+    // Try to play immediately
     playAudio();
 
+    // Also add interaction listeners to handle autoplay policy
+    const handleInteraction = () => {
+      playAudio();
+      // Once triggered, remove listeners
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+
     return () => {
-      bgm.pause();
       intro1.pause();
       intro2.pause();
+      bgm.pause();
+      intro1.currentTime = 0;
+      intro2.currentTime = 0;
+      bgm.currentTime = 0;
+      intro1.removeEventListener('ended', handleIntro1End);
+      intro2.removeEventListener('ended', handleIntro2End);
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
     };
   }, []);
 
@@ -114,7 +155,7 @@ export default function App() {
           src="/logo_guessed-who.png"
           alt="Who Guessed? Logo"
           style={{
-            width: 'clamp(150px, 80vw, 300px)', // Responsive size: min 150px, max 300px, 20% of viewport width
+            width: 'clamp(200px, 80vw, 360px)', // Responsive size: min 150px, max 300px, 20% of viewport width
             height: 'auto', // Maintain aspect ratio
           }}
         />

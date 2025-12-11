@@ -23,12 +23,14 @@ const generationPhases = GENERATION_PHASES;
 const QUESTION_ROTATION_DELAY_MS = 3000;
 
 function createSvgPlaceholder(label: string) {
+  const textElement = label
+    ? `<text x="100" y="120" text-anchor="middle" font-size="16" fill="#4b5563" font-family="Arial, sans-serif">${label}</text>`
+    : '';
+
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="200" height="240" viewBox="0 0 200 240">
-      <rect width="200" height="240" fill="#f3f4f6" stroke="#d1d5db" stroke-width="3" />
-      <text x="100" y="120" text-anchor="middle" font-size="16" fill="#4b5563" font-family="Arial, sans-serif">
-        ${label}
-      </text>
+      <rect width="200" height="240" fill="white" stroke="#d1d5db" stroke-width="3" />
+      ${textElement}
     </svg>
   `;
 
@@ -38,7 +40,7 @@ function createSvgPlaceholder(label: string) {
   return `data:image/svg+xml;base64,${base64}`;
 }
 
-const PLACEHOLDER_IMAGE = createSvgPlaceholder('Awaiting image');
+const PLACEHOLDER_IMAGE = createSvgPlaceholder('');
 const seedPool = initialTiles.slice(0, FINAL_SLOT_COUNT);
 const chainIds = Array.from({ length: FINAL_SLOT_COUNT }, (_, index) => `chain-${index + 1}`);
 const initialQuestionEntry = questionPool[Math.floor(Math.random() * questionPool.length)];
