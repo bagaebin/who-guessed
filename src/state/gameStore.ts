@@ -154,7 +154,7 @@ function formatGenerationError(error: unknown): string {
     }
 
     if (error.message.includes('Image analysis endpoint returned 404')) {
-      return 'Image analysis endpoint returned 404. Verify VITE_IMAGE_ANALYSIS_ENDPOINT points to a valid analysis route.';
+      return 'Image analysis endpoint returned 404. Verify VITE_IMAGE_ANALYSIS_ENDPOINT points to a backend route that exists (e.g., /api/imageAnalysisClient must be implemented or update the URL to a reachable analysis service).';
     }
 
     return `Failed to generate appearance samples: ${error.message}`;
