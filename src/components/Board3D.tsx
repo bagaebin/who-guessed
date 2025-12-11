@@ -256,6 +256,13 @@ function UpdateCamera({
     const controls = controlsRef.current;
     if (!controls || !(camera instanceof THREE.PerspectiveCamera)) return;
 
+    if (introState === 'done' && !focusOverrideActiveRef.current) {
+      baseTargetRef.current.copy(controls.target);
+      tiltOffsetRef.current = 0;
+      controls.update();
+      return;
+    }
+
     // Rebuild the un-tilted target so user panning is respected
     tempBase.set(
       controls.target.x,
