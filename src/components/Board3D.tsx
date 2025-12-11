@@ -178,13 +178,17 @@ function SceneContents({
         ref={controlsRef}
         enableRotate
         enablePan
+        enableZoom
+        screenSpacePanning
+        enableDamping
+        dampingFactor={0.08}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
           RIGHT: THREE.MOUSE.PAN
         }}
-        minDistance={10}
-        maxDistance={25}
+        minDistance={4}
+        maxDistance={60}
       />
       <UpdateCamera
         controlsRef={controlsRef}
