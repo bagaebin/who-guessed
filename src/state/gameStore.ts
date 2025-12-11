@@ -139,8 +139,8 @@ function remixCore(base: AppearanceCore, prompt: string, salt: string): Appearan
 function buildPromptFromTurn(question: string, answer: string): string {
   const fallbackQuestion = question?.trim() || 'the current question';
   const trimmedAnswer = answer?.trim() || 'no answer provided yet';
-  const descriptor = `a person described as: "${trimmedAnswer}" (answering: "${fallbackQuestion}")`;
-  return `realistic ID photo on a white background, centered bust portrait, ${descriptor}`;
+  const descriptor = `a real human person who would answer "${trimmedAnswer}" to the question "${fallbackQuestion}", described only through appearance and mood (never as text)`;
+  return `realistic ID photo, centered bust portrait on a clean white background. The image must depict ${descriptor}, avoiding animals or fictional beings and containing absolutely no written text, captions, labels, or symbols.`;
 }
 
 function determineVisibleIds(phase: GamePhase): Set<string> {
