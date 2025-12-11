@@ -33,6 +33,7 @@ export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCam
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
   const tileStyle = useMemo(() => TILE_COLOR_GUIDE.active, []);
   const bubbleDisabled = isInputLocked || isLoading;
+  const inputDisabled = bubbleDisabled;
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -133,6 +134,7 @@ export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCam
         : false;
 
       if (isEditable) return;
+      if (inputDisabled) return;
 
       if (
         event.key.length === 1 &&
@@ -151,7 +153,7 @@ export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCam
     return () => {
       window.removeEventListener('keydown', handleGlobalKeyDown);
     };
-  }, [onFocusRequest, setPlayerText]);
+  }, [inputDisabled, onFocusRequest, setPlayerText]);
 
   const bubbleDistanceFactor = useMemo(() => {
     const baseDistanceFactor = 3.8;
@@ -220,8 +222,9 @@ export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCam
               onChange={(event) => setPlayerText(event.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder="Type your bubble text"
+              disabled={inputDisabled}
             />
-            <button type="submit" disabled={bubbleDisabled}>
+            <button type="submit" className="bubble-button" disabled={bubbleDisabled}>
               {bubbleDisabled ? 'Waiting...' : 'Send'}
             </button>
           </div>

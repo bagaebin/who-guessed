@@ -178,7 +178,8 @@ button.ghost {
   color: rgba(10, 30, 63, 0.55);
 }
 
-.camera-bubble button {
+.camera-bubble button,
+.bubble-button {
   padding: 0.75rem 1.05rem;
   border-radius: 12px;
   border: none;
@@ -190,7 +191,8 @@ button.ghost {
   box-shadow: 0 8px 18px rgba(31, 77, 224, 0.28);
 }
 
-.camera-bubble button:disabled {
+.camera-bubble button:disabled,
+.bubble-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   box-shadow: none;
@@ -332,6 +334,23 @@ button.ghost {
   background: rgba(48, 191, 191, 0.06);
   border: 1px solid rgba(48, 191, 191, 0.15);
   border-radius: 14px;
+}
+
+.outro-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  z-index: 14;
+}
+
+.outro-overlay__button {
+  pointer-events: auto;
+  min-width: 140px;
+  text-transform: uppercase;
 }
 
 .animated-bg {

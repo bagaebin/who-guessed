@@ -1,30 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSpring, animated } from '@react-spring/web';
 import Board3D from './components/Board3D';
 import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
 import './styles.css';
 
-function FinalReveal() {
-  const { tiles } = useGameStore();
-  const remaining = tiles.filter((t) => !t.isEliminated);
-  if (remaining.length !== 1) return null;
-  const tile = remaining[0];
+function OutroOverlay({ isVisible, onReplay }: { isVisible: boolean; onReplay: () => void }) {
+  if (!isVisible) return null;
   return (
-    <div className="final-reveal">
-      <h2>Predicted Look-alike</h2>
-      <p>Tile {tile.id} was selected.</p>
-      <img src={tile.image} alt={tile.id} />
+    <div className="outro-overlay">
+      <button className="bubble-button outro-overlay__button" onClick={onReplay}>
+        Replay
+      </button>
     </div>
   );
 }
 
 export default function App() {
   const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
+  const pendingGenerations = useGameStore((state) => state.pendingGenerations);
+  const activeGenerationId = useGameStore((state) => state.activeGenerationId);
+  const resetGame = useGameStore((state) => state.reset);
   const currentQuestion = useGameStore((state) => state.currentQuestion);
-  const isInputLocked = useGameStore((state) => state.isInputLocked);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
+
+  const remainingTiles = useMemo(() => tiles.filter((tile) => !tile.isEliminated), [tiles]);
+  const focusTileId = remainingTiles.length === 1 ? remainingTiles[0].id : undefined;
+  const generatingIds = useMemo(() => {
+    const ids = new Set(pendingGenerations.map((job) => job.chainId));
+    if (activeGenerationId) ids.add(activeGenerationId);
+    return ids;
+  }, [activeGenerationId, pendingGenerations]);
 
   const logoSpring = useSpring({
     from: { opacity: 0 }, // Ensure initial opacity is set
@@ -161,7 +168,7 @@ export default function App() {
         />
       </animated.div>
       <div className="left">
-        <Board3D tiles={tiles} />
+        <Board3D tiles={tiles} generatingIds={generatingIds} focusTileId={focusTileId} />
       </div>
       <div className={`admin-panel ${isAdminOpen ? 'admin-panel--open' : ''}`}>
         <div className="admin-panel__header">
@@ -171,8 +178,8 @@ export default function App() {
           </button>
         </div>
         <UiPanel />
-        <FinalReveal />
       </div>
+      <OutroOverlay isVisible={Boolean(focusTileId)} onReplay={resetGame} />
     </div>
   );
 }

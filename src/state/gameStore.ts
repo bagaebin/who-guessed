@@ -287,6 +287,7 @@ async function processGenerationQueue(
       if (!draft.generationInFlight && draft.generationAnswers < FINAL_SLOT_COUNT) {
         draft.isInputLocked = false;
       }
+      draft.activeGenerationId = null;
       startEliminationIfReady(draft);
     });
     return;
@@ -295,6 +296,7 @@ async function processGenerationQueue(
   set((draft) => {
     draft.generationInFlight = true;
     draft.isLoading = true;
+    draft.activeGenerationId = job.chainId;
   });
 
   try {
@@ -342,6 +344,7 @@ async function processGenerationQueue(
     set((draft) => {
       draft.pendingGenerations.shift();
       draft.generationInFlight = false;
+      draft.activeGenerationId = null;
       draft.isLoading = false;
       const pendingCount = draft.pendingGenerations.length;
       const generatedCount = draft.tiles.filter((tile) => tile.isGenerated).length;
@@ -386,6 +389,7 @@ export const useGameStore = create<GameState & {
     playerHistory: [],
     pendingGenerations: [],
     generationInFlight: false,
+    activeGenerationId: null,
     questionTimerId: null,
 
     reset: () => {
@@ -413,6 +417,7 @@ export const useGameStore = create<GameState & {
         draft.playerHistory = [];
         draft.pendingGenerations = [];
         draft.generationInFlight = false;
+        draft.activeGenerationId = null;
         draft.questionTimerId = null;
       });
     },

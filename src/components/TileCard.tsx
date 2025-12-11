@@ -16,11 +16,12 @@ type TileCardProps = {
     onComplete?: () => void;
     index?: number; // Add index to calculate unique delayMs
   };
+  isGenerating?: boolean;
 };
 
 const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 
-export default function TileCard({ tile, position, introAnimation }: TileCardProps) {
+export default function TileCard({ tile, position, introAnimation, isGenerating }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
   const introStartedRef = useRef(false);
@@ -75,6 +76,27 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
 
   const texture = useTexture(tile.image);
 
+  const [{ posX, posY, posZ }, positionApi] = useSpring(() => ({
+    posX: baseX,
+    posY: baseY,
+    posZ: baseZ,
+    config: { mass: 1.05, tension: 140, friction: 18 }
+  }));
+
+  useEffect(() => {
+    positionApi.start({ posX: baseX, posY: baseY, posZ: baseZ });
+  }, [baseX, baseY, baseZ, positionApi]);
+
+  const [{ bounceOffset }, bounceApi] = useSpring(() => ({ bounceOffset: 0 }));
+
+  useEffect(() => {
+    bounceApi.start({
+      bounceOffset: isGenerating ? 0.18 : 0,
+      loop: isGenerating ? { reverse: true } : false,
+      config: { mass: 1, tension: 220, friction: 6 }
+    });
+  }, [bounceApi, isGenerating]);
+
   const [baseX, baseY, baseZ] = useMemo(() => {
     if (Array.isArray(position)) {
       return [position[0] ?? 0, position[1] ?? 0, position[2] ?? 0];
@@ -84,9 +106,11 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
 
   return (
     <a.group
-      position-x={baseX}
-      position-y={to([yOffset, dropOffset], (y, drop) => baseY + y + drop)}
-      position-z={baseZ}
+      position-x={posX}
+      position-y={to([posY, yOffset, dropOffset, bounceOffset], (yPos, y, drop, bounce) =>
+        yPos + y + drop + bounce
+      )}
+      position-z={posZ}
       rotation-x={rotationX}
     >
       <RoundedBox args={[TILE_SIZE.width, TILE_SIZE.height, TILE_SIZE.depth]} radius={style.borderRadius} smoothness={6} castShadow receiveShadow>
