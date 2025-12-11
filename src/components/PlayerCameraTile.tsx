@@ -15,11 +15,12 @@ import { TILE_COLOR_GUIDE } from '../utils/tileStyleGuide';
 
 type PlayerCameraTileProps = {
   position: MeshProps['position'];
+  onFocusRequest?: () => void;
 };
 
 const TILE_SIZE = { width: 3.2, height: 4, depth: 0.16 };
 
-export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
+export default function PlayerCameraTile({ position, onFocusRequest }: PlayerCameraTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const textureRef = useRef<THREE.VideoTexture | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -141,6 +142,7 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
         !event.isComposing
       ) {
         inputRef.current?.focus();
+        onFocusRequest?.();
         setPlayerText((prev) => `${prev}${event.key}`);
       }
     };

@@ -111,6 +111,7 @@ function SceneContents({
   const overviewPositionVector = useMemo(() => new THREE.Vector3(...overviewPosition), [overviewPosition]);
   const overviewTargetVector = useMemo(() => new THREE.Vector3(...overviewTarget), [overviewTarget]);
   const focusTargetVector = useMemo(() => new THREE.Vector3(...focusTarget), [focusTarget]);
+  const cameraTileTarget = useMemo(() => new THREE.Vector3(...cameraTilePosition), [cameraTilePosition]);
 
   const baseOffset = useMemo(
     () =>
@@ -125,6 +126,23 @@ function SceneContents({
     [baseOffset, focusTargetVector]
   );
 
+  const handleFocusOnPlayerTile = useCallback(() => {
+    const controls = controlsRef.current;
+    if (!controls || !(camera instanceof THREE.PerspectiveCamera)) return;
+
+    const currentOffset = camera.position.clone().sub(controls.target);
+    controls.target.copy(cameraTileTarget);
+    baseTargetRef.current.copy(cameraTileTarget);
+    camera.position.copy(cameraTileTarget.clone().add(currentOffset));
+    controls.update();
+  }, [camera, cameraTileTarget]);
+
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    controlsRef.current.target.copy(baseTargetRef.current);
+    controlsRef.current.update();
+  }, []);
+
   return (
     <>
       {/* 배경색을 투명하게 설정 */}
@@ -133,7 +151,7 @@ function SceneContents({
       <hemisphereLight args={["#a3c4f9", "#4f6b8f", 0.85]} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1.45} castShadow />
-      <PlayerCameraTile position={cameraTilePosition} />
+      <PlayerCameraTile position={cameraTilePosition} onFocusRequest={handleFocusOnPlayerTile} />
       <TileGrid
         tiles={tiles}
         introState={{
@@ -153,7 +171,6 @@ function SceneContents({
         ref={controlsRef}
         enableRotate
         enablePan
-        target={CAMERA_TARGET}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
           MIDDLE: THREE.MOUSE.DOLLY,
