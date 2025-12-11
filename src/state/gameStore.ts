@@ -512,6 +512,11 @@ export const useGameStore = create<GameState & {
           }
           draft.isLoading = false;
         });
+
+        const remainingAfter = get().tiles.filter((t) => !t.isEliminated && t.isVisible !== false).length;
+        if (remainingAfter > 1) {
+          scheduleNextQuestion(get, set);
+        }
       } catch (error) {
         set({ statusMessage: 'Something went wrong while processing the LLM response.' });
       } finally {

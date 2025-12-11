@@ -14,7 +14,7 @@ type Board3DProps = {
 type IntroStage = 'idle' | 'dropping' | 'overview' | 'focusing' | 'done';
 
 // 한 행에 배치되는 타일 수
-const TILE_COLUMNS = 8;
+const TILE_COLUMNS = 5;
 // 타일 사이 간격
 const TILE_SPACING = 2.2;
 // Camera 타일과 앞열 타일 사이 간격
