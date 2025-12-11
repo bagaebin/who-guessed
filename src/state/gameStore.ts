@@ -196,7 +196,7 @@ export const useGameStore = create<GameState & {
   submitPlayerText: (text: string) => Promise<void>;
   setPlayerText: (next: string | ((prev: string) => string)) => void;
   reset: () => void;
-}>(
+}>()(
   immer((set, get) => ({
     tiles: buildInitialTiles(),
     playerProfile: undefined,
@@ -257,18 +257,19 @@ export const useGameStore = create<GameState & {
       }
 
       if (isGenerationPhase(state.phase)) {
+        const currentGenPhase = state.phase;
         try {
           const { nextQuestion, nextIndex } = getNextQuestion(state.questionIndex);
           const updates = await generateAppearanceForChains(
-            generationTargets[state.phase],
+            generationTargets[currentGenPhase],
             state.currentQuestion,
             trimmed,
             state.tiles,
-            state.phase
+            currentGenPhase
           );
 
           const generationLog = {
-            stage: state.phase,
+            stage: currentGenPhase,
             question: state.currentQuestion,
             answer: trimmed,
             prompt: updates[0]?.prompt ?? '',
@@ -295,7 +296,7 @@ export const useGameStore = create<GameState & {
             draft.lastEliminatedIds = [];
             draft.lastReasoning = undefined;
             draft.round += 1;
-            const upcomingPhase = nextPhase[state.phase];
+            const upcomingPhase = nextPhase[currentGenPhase];
             draft.phase = upcomingPhase;
             draft.tiles = updateVisibility(draft.tiles, upcomingPhase);
             draft.playerText = '';
