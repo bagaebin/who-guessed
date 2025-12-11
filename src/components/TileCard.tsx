@@ -16,11 +16,12 @@ type TileCardProps = {
     onComplete?: () => void;
     index?: number; // Add index to calculate unique delayMs
   };
+  isGenerating?: boolean;
 };
 
 const TILE_SIZE = { width: 1.6, height: 2.2, depth: 0.12 };
 
-export default function TileCard({ tile, position, introAnimation }: TileCardProps) {
+export default function TileCard({ tile, position, introAnimation, isGenerating }: TileCardProps) {
   const style = getTileStyle(tile);
   const introCompleteRef = useRef(false);
   const introStartedRef = useRef(false);
@@ -44,13 +45,14 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
     }
   }, [introEnabled, introAnimation?.delayMs, introAnimation?.initialHeight, introAnimation?.index]);
 
-  const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity } = useSpring({
+  const { rotationX, opacity, yOffset, baseColor, dropOffset, introOpacity, bounceOffset } = useSpring({
     rotationX: tile.isEliminated ? -(Math.PI / 2 + 0.2) : -0.2,
     baseColor: style.baseColor,
     opacity: style.opacity,
     yOffset: tile.isEliminated ? -0.25 : 0,
     dropOffset: 0,
     introOpacity: 1,
+    bounceOffset: isGenerating ? 0.08 : 0,
     from: shouldStartIntro
       ? {
           dropOffset: introHeightRef.current,
@@ -58,8 +60,12 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
         }
       : undefined,
     delay: introDelayRef.current,
-    config: { mass: 1.1, tension: 180, friction: 18 },
+    config: (key) =>
+      key === 'bounceOffset'
+        ? { mass: 1.1, tension: 220, friction: 2 }
+        : { mass: 1.1, tension: 180, friction: 18 },
     reset: shouldStartIntro,
+    loop: isGenerating && !tile.isEliminated ? { reverse: true } : false,
     onRest: (result) => {
       if (
         introEnabled &&
@@ -85,7 +91,7 @@ export default function TileCard({ tile, position, introAnimation }: TileCardPro
   return (
     <a.group
       position-x={baseX}
-      position-y={to([yOffset, dropOffset], (y, drop) => baseY + y + drop)}
+      position-y={to([yOffset, dropOffset, bounceOffset], (y, drop, bounce) => baseY + y + drop + bounce)}
       position-z={baseZ}
       rotation-x={rotationX}
     >

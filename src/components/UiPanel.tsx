@@ -175,6 +175,7 @@ export default function UiPanel() {
           onChange={(e) => setPlayerText(e.target.value)}
           rows={4}
           placeholder="질문에 대한 생각을 알려주세요."
+          disabled={isInputLocked}
         />
         <button type="submit" disabled={isSubmitDisabled}>
           {isSubmitDisabled ? 'Waiting...' : 'Send to LLM'}
