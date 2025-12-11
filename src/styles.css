@@ -196,6 +196,38 @@ button.ghost {
   box-shadow: none;
 }
 
+.camera-bubble input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.outro-overlay {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 14;
+  pointer-events: none;
+}
+
+.replay-button {
+  pointer-events: auto;
+  padding: 0.75rem 1.05rem;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(90deg, #1f4de0, #4d7bff);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.98em;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(31, 77, 224, 0.28);
+}
+
+.replay-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .question-banner-wrapper {
   position: fixed;
   top: 12px;

@@ -76,6 +76,7 @@ export type CharacterTile = {
   isEliminated: boolean;
   isVisible?: boolean;
   isGenerated?: boolean;
+  isGenerating?: boolean;
 };
 
 export const GENERATION_PHASES = [

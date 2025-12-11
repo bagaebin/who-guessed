@@ -5,16 +5,16 @@ import UiPanel from './components/UiPanel';
 import { useGameStore } from './state/gameStore';
 import './styles.css';
 
-function FinalReveal() {
-  const { tiles } = useGameStore();
-  const remaining = tiles.filter((t) => !t.isEliminated);
+function OutroOverlay() {
+  const { tiles, reset } = useGameStore();
+  const remaining = tiles.filter((t) => !t.isEliminated && t.isVisible !== false);
   if (remaining.length !== 1) return null;
-  const tile = remaining[0];
+
   return (
-    <div className="final-reveal">
-      <h2>Predicted Look-alike</h2>
-      <p>Tile {tile.id} was selected.</p>
-      <img src={tile.image} alt={tile.id} />
+    <div className="outro-overlay">
+      <button className="replay-button" onClick={reset}>
+        Replay
+      </button>
     </div>
   );
 }
@@ -22,7 +22,6 @@ function FinalReveal() {
 export default function App() {
   const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
   const currentQuestion = useGameStore((state) => state.currentQuestion);
-  const isInputLocked = useGameStore((state) => state.isInputLocked);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
 
@@ -171,8 +170,8 @@ export default function App() {
           </button>
         </div>
         <UiPanel />
-        <FinalReveal />
       </div>
+      <OutroOverlay />
     </div>
   );
 }
