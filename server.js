@@ -398,7 +398,7 @@ app.post("/generate-images", generateImagesHandler);
 
 // 🔍 이미지 분석 엔드포인트 (VITE_IMAGE_ANALYSIS_ENDPOINT)
 app.post("/api/imageAnalysisClient", async (req, res) => {
-  const { images } = req.body || {};
+  const { images, prompt } = req.body || {};
 
   // images는 { id, image } 형태의 배열이어야 함
   if (!Array.isArray(images)) {
@@ -406,28 +406,12 @@ app.post("/api/imageAnalysisClient", async (req, res) => {
   }
 
   try {
-    // 프론트에서 기대하는 AppearanceCore 형식을 맞춘 기본 분석 결과 생성
-    const results = images.map((item) => ({
-      id: item.id,
-      core: {
-        gender: "non_binary",
-        race: "mixed",
-        ageGroup: "adult",
-        skinTone: "medium",
-        bodyShape: "average",
-        skinCondition: "clear",
-        hairLength: "medium",
-        hairStyle: "straight",
-        hairColor: "black",
-        glasses: "none",
-        facialHair: "none",
-        faceShape: "oval",
-        expressionBaseline: "neutral",
-        styleVibe: "casual",
-        makeupLevel: "none",
-        accessoriesPresence: "none",
-      },
-    }));
+    const results = await Promise.all(
+      images.map(async (item) => ({
+        id: item.id,
+        core: await analyzeImageAppearance({ image: item.image, prompt }),
+      }))
+    );
 
     return res.json({ results });
   } catch (error) {
@@ -435,6 +419,71 @@ app.post("/api/imageAnalysisClient", async (req, res) => {
     return res.status(500).json({ error: "image analysis failed", detail: error?.message });
   }
 });
+
+async function analyzeImageAppearance({ image, prompt }) {
+  const systemPrompt = `
+You are an expert computer vision assistant for a guessing game.
+You must examine the provided image of a single person and return a strict JSON object with only the fields listed below.
+Choose exactly one allowed value per field based on the visible appearance. When uncertain, make the best good-faith guess; do not return "unknown" or invent new values.
+Respond with JSON only, no markdown or additional text.
+
+Shape:
+{
+  "profile": {
+    "gender": "male|female|non_binary|transgender",
+    "race": "east_asian|southeast_asian|south_asian|black|white|latinx|middle_eastern|indigenous|pacific_islander|mixed",
+    "ageGroup": "child|teen|young_adult|adult|older_adult",
+    "skinTone": "very_light|light|medium|tan|deep",
+    "bodyShape": "very_slim|slim|average|slightly_chubby|chubby",
+    "skinCondition": "clear|some_acne|noticeable_acne|freckles_or_spots|sensitive_or_red",
+    "hairLength": "bald_or_shaved|short|medium|long",
+    "hairStyle": "straight|wavy|curly|coily|buzz",
+    "hairColor": "black|dark_brown|light_brown|blonde|red|gray|dyed_color",
+    "glasses": "none|round|square|other",
+    "facialHair": "none|stubble|mustache|beard",
+    "faceShape": "round|oval|square|long",
+    "expressionBaseline": "neutral|subtle_smile|big_smile|serious|tired|shy|confident",
+    "styleVibe": "casual|sporty|formal|artsy|geeky|punk_or_goth|street|minimal|colorful",
+    "makeupLevel": "none|light|noticeable|bold",
+    "accessoriesPresence": "none|ear|head|neck"
+  }
+}`.trim();
+
+  const userContent = [
+    {
+      type: "input_text",
+      text:
+        "Analyze this person's visible appearance and return the JSON profile. " +
+        (prompt ? `Player prompt/context: ${prompt}` : ""),
+    },
+    {
+      type: "input_image",
+      image_url: image,
+    },
+  ];
+
+  const completion = await client.chat.completions.create({
+    model: "gpt-4.1-mini",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent },
+    ],
+    temperature: 0.2,
+  });
+
+  const content = completion.choices[0]?.message?.content ?? "{}";
+
+  let parsedProfile;
+  try {
+    const parsed = JSON.parse(content);
+    parsedProfile = parsed?.profile;
+  } catch (error) {
+    console.warn("⚠️ Failed to parse image analysis JSON; falling back to defaults", error);
+  }
+
+  const normalized = buildNormalizedProfile(parsedProfile, {});
+  return normalized;
+}
 
 app.listen(3000, () => {
   console.log("API server listening on http://localhost:3000");
