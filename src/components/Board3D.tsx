@@ -103,6 +103,9 @@ function SceneContents({
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const camera = useThree((state) => state.camera);
   const baseTargetRef = useRef(new THREE.Vector3(...CAMERA_TARGET));
+  const focusOverrideTargetRef = useRef<THREE.Vector3 | null>(null);
+  const focusOverrideOffsetRef = useRef<THREE.Vector3 | null>(null);
+  const tempFocusPosition = useMemo(() => new THREE.Vector3(), []);
   const tiltOffsetRef = useRef(0);
   const overviewCompleteRef = useRef(false);
   const focusCompleteRef = useRef(false);
@@ -133,6 +136,8 @@ function SceneContents({
     const currentOffset = camera.position.clone().sub(controls.target);
     controls.target.copy(cameraTileTarget);
     baseTargetRef.current.copy(cameraTileTarget);
+    focusOverrideTargetRef.current = cameraTileTarget.clone();
+    focusOverrideOffsetRef.current = currentOffset.clone();
     camera.position.copy(cameraTileTarget.clone().add(currentOffset));
     controls.update();
   }, [camera, cameraTileTarget]);
@@ -189,6 +194,9 @@ function SceneContents({
         introState={introState}
         overviewCompleteRef={overviewCompleteRef}
         focusCompleteRef={focusCompleteRef}
+        focusOverrideTargetRef={focusOverrideTargetRef}
+        focusOverrideOffsetRef={focusOverrideOffsetRef}
+        tempFocusPosition={tempFocusPosition}
         overviewPosition={overviewPositionVector}
         overviewTarget={overviewTargetVector}
         focusPosition={focusPositionVector}
@@ -210,6 +218,9 @@ function UpdateCamera({
   introState,
   overviewCompleteRef,
   focusCompleteRef,
+  focusOverrideTargetRef,
+  focusOverrideOffsetRef,
+  tempFocusPosition,
   overviewPosition,
   overviewTarget,
   focusPosition,
@@ -226,6 +237,9 @@ function UpdateCamera({
   introState: IntroStage;
   overviewCompleteRef: MutableRefObject<boolean>;
   focusCompleteRef: MutableRefObject<boolean>;
+  focusOverrideTargetRef: MutableRefObject<THREE.Vector3 | null>;
+  focusOverrideOffsetRef: MutableRefObject<THREE.Vector3 | null>;
+  tempFocusPosition: THREE.Vector3;
   overviewPosition: THREE.Vector3;
   overviewTarget: THREE.Vector3;
   focusPosition: THREE.Vector3;
@@ -275,6 +289,14 @@ function UpdateCamera({
     const desiredTilt = THREE.MathUtils.clamp(heightAboveTarget * AUTO_TILT_SLOPE, 0, AUTO_TILT_MAX);
     const nextTilt = THREE.MathUtils.damp(tiltOffsetRef.current, desiredTilt, 6, delta);
     tiltOffsetRef.current = nextTilt;
+
+    if (introState === 'done' && focusOverrideTargetRef.current && focusOverrideOffsetRef.current) {
+      tempFocusPosition
+        .copy(focusOverrideTargetRef.current)
+        .add(focusOverrideOffsetRef.current);
+      camera.position.lerp(tempFocusPosition, 1 - Math.exp(-delta * 3));
+      baseTargetRef.current.lerp(focusOverrideTargetRef.current, 1 - Math.exp(-delta * 4));
+    }
 
     tempTarget.set(
       baseTargetRef.current.x,
