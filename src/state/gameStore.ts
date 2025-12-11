@@ -153,6 +153,10 @@ function formatGenerationError(error: unknown): string {
       return 'Image analysis endpoint is missing. Set VITE_IMAGE_ANALYSIS_ENDPOINT to analyze generated images.';
     }
 
+    if (error.message.includes('Image analysis endpoint returned 404')) {
+      return 'Image analysis endpoint returned 404. Verify VITE_IMAGE_ANALYSIS_ENDPOINT points to a valid analysis route.';
+    }
+
     return `Failed to generate appearance samples: ${error.message}`;
   }
 
