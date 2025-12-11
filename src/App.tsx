@@ -64,8 +64,16 @@ export default function App() {
     const bgm = new Audio('/bgm_Who Guessed.mp3');
     bgm.loop = true;
     bgm.volume = 0.3;
+    intro1.currentTime = 0;
+    intro2.currentTime = 0;
+    bgm.currentTime = 0;
+
+    let bgmStarted = false;
 
     const startBackgroundMusic = async () => {
+      if (bgmStarted) return;
+      bgmStarted = true;
+      bgm.currentTime = 0;
       try {
         await bgm.play();
       } catch (e) {
@@ -96,12 +104,16 @@ export default function App() {
       }
     };
 
+    startBackgroundMusic();
     playAudio();
 
     return () => {
       intro1.pause();
       intro2.pause();
       bgm.pause();
+      intro1.currentTime = 0;
+      intro2.currentTime = 0;
+      bgm.currentTime = 0;
       intro1.removeEventListener('ended', handleIntro1End);
       intro2.removeEventListener('ended', handleIntro2End);
     };
