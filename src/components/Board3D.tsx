@@ -23,7 +23,12 @@ const parsedCameraZAdjust = Number.parseFloat(import.meta.env.VITE_CAMERA_TILE_Z
 const CAMERA_TILE_Y_ADJUST = Number.isFinite(parsedCameraZAdjust) ? parsedCameraZAdjust : 0;
 const parsedRowStep = Number.parseFloat(import.meta.env.VITE_TILE_ROW_STEP ?? '');
 const STAIR_STEP = Number.isFinite(parsedRowStep) ? parsedRowStep : 0.32;
-const MAX_INTRO_TILE_COUNT = 24;
+const parsedIntroMaxCount = Number.parseInt(import.meta.env.VITE_INTRO_MAX_DROP_COUNT ?? '', 10);
+const MAX_INTRO_TILE_COUNT = Number.isFinite(parsedIntroMaxCount) ? parsedIntroMaxCount : 24;
+const parsedIntroDelay = Number.parseInt(import.meta.env.VITE_INTRO_DROP_DELAY ?? '', 10);
+const INTRO_DROP_DELAY_MS = Number.isFinite(parsedIntroDelay) ? parsedIntroDelay : 320;
+const parsedIntroHeight = Number.parseFloat(import.meta.env.VITE_INTRO_DROP_HEIGHT ?? '');
+const INTRO_DROP_HEIGHT = Number.isFinite(parsedIntroHeight) ? parsedIntroHeight : 6;
 const OVERVIEW_TARGET_Y_OFFSET = -2;
 const OVERVIEW_POSITION_Z_PADDING = 12;
 const OVERVIEW_POSITION_Y_PADDING = 4;
@@ -58,8 +63,8 @@ function TileGrid({
           introIndex !== undefined
             ? {
                 isActive: introState?.stage === 'dropping',
-                delayMs: introIndex * 320,
-                initialHeight: 6 + introIndex * 0.3,
+                delayMs: introIndex * INTRO_DROP_DELAY_MS,
+                initialHeight: INTRO_DROP_HEIGHT + introIndex * 0.3,
                 index: introIndex, // Add index for TileCard
                 onComplete:
                   introState?.stage === 'dropping' ? introState?.onTileDropComplete : undefined
@@ -163,6 +168,9 @@ export default function Board3D({ tiles }: Board3DProps) {
   useEffect(() => {
     if (introStage === 'dropping' && introDropCount >= introTileIds.length) {
       setIntroStage('done');
+      if (import.meta.env.DEV) {
+        console.debug('Intro drop completed for tiles:', introTileIds.length);
+      }
     }
   }, [introDropCount, introStage, introTileIds.length]);
 
