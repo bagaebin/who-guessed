@@ -14,11 +14,13 @@ import {
   GamePhase,
   GameState,
   GENERATION_PHASES,
-  GenerationPhase
+  GenerationPhase,
+  PendingGenerationJob
 } from '../types/appearance';
 
 const FINAL_SLOT_COUNT = 10;
 const generationPhases = GENERATION_PHASES;
+const QUESTION_ROTATION_DELAY_MS = 3000;
 
 function createSvgPlaceholder(label: string) {
   const svg = `
@@ -39,13 +41,55 @@ function createSvgPlaceholder(label: string) {
 const PLACEHOLDER_IMAGE = createSvgPlaceholder('Awaiting image');
 const seedPool = initialTiles.slice(0, FINAL_SLOT_COUNT);
 const chainIds = Array.from({ length: FINAL_SLOT_COUNT }, (_, index) => `chain-${index + 1}`);
-const initialQuestionIndex = 0;
-const initialQuestion = questionPool[initialQuestionIndex]?.text ?? '';
+const initialQuestionEntry = questionPool[Math.floor(Math.random() * questionPool.length)];
+const initialQuestion = initialQuestionEntry?.text ?? '';
+const initialQuestionId = initialQuestionEntry?.id;
 
-function getNextQuestion(index: number): { nextQuestion: string; nextIndex: number } {
-  if (!questionPool.length) return { nextQuestion: '', nextIndex: 0 };
-  const nextIndex = (index + 1) % questionPool.length;
-  return { nextQuestion: questionPool[nextIndex].text, nextIndex };
+function drawRandomQuestion(askedIds: string[]): { id?: string; text: string } | null {
+  const remaining = questionPool.filter((question) => !askedIds.includes(question.id));
+  if (!remaining.length) return null;
+  const next = remaining[Math.floor(Math.random() * remaining.length)];
+  return { id: next.id, text: next.text };
+}
+
+function scheduleNextQuestion(
+  get: () => GameState,
+  set: (fn: (draft: GameState) => void) => void
+) {
+  const currentTimer = get().questionTimerId;
+  if (currentTimer) {
+    clearTimeout(currentTimer);
+  }
+
+  set((draft) => {
+    draft.isInputLocked = true;
+  });
+
+  const timerId = setTimeout(() => {
+    const next = drawRandomQuestion(get().askedQuestionIds);
+    set((draft) => {
+      if (next) {
+        draft.currentQuestion = next.text;
+        draft.currentQuestionId = next.id;
+        if (next.id && !draft.askedQuestionIds.includes(next.id)) {
+          draft.askedQuestionIds.push(next.id);
+        }
+        draft.questionHistory.push(next.text);
+      } else {
+        draft.currentQuestion = '';
+        draft.currentQuestionId = undefined;
+      }
+
+      const shouldLock =
+        draft.generationAnswers >= FINAL_SLOT_COUNT && (draft.pendingGenerations.length > 0 || draft.generationInFlight);
+      draft.isInputLocked = shouldLock ? true : false;
+      draft.questionTimerId = null;
+    });
+  }, QUESTION_ROTATION_DELAY_MS);
+
+  set((draft) => {
+    draft.questionTimerId = timerId as unknown as ReturnType<typeof setTimeout>;
+  });
 }
 
 const generationTargets = generationPhases.reduce<Record<GenerationPhase, string[]>>((acc, phase, index) => {
@@ -219,6 +263,97 @@ const nextPhase = generationPhases.reduce<Record<GenerationPhase, GamePhase>>((a
   return acc;
 }, {} as Record<GenerationPhase, GamePhase>);
 
+async function processGenerationQueue(
+  get: () => GameState,
+  set: (fn: (draft: GameState) => void) => void
+) {
+  const state = get();
+  if (state.generationInFlight) return;
+  const job = state.pendingGenerations[0];
+  if (!job) {
+    set((draft) => {
+      draft.isLoading = false;
+      if (!draft.generationInFlight && draft.generationAnswers < FINAL_SLOT_COUNT) {
+        draft.isInputLocked = false;
+      }
+    });
+    return;
+  }
+
+  set((draft) => {
+    draft.generationInFlight = true;
+    draft.isLoading = true;
+  });
+
+  try {
+    const updates = await generateAppearanceForChains(
+      generationTargets[job.phase],
+      job.questionText,
+      job.answer,
+      state.tiles,
+      job.phase
+    );
+
+    const generationLog = {
+      stage: job.phase,
+      question: job.questionText,
+      answer: job.answer,
+      prompt: updates[0]?.prompt ?? '',
+      outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
+      timestamp: Date.now()
+    } as const;
+
+    set((draft) => {
+      updates.forEach((update) => {
+        const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
+        if (tileIndex >= 0) {
+          draft.tiles[tileIndex] = {
+            ...draft.tiles[tileIndex],
+            core: update.core,
+            image: update.image,
+            isGenerated: true
+          };
+        }
+      });
+
+      draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
+      draft.playerHistory.push(job.answer);
+      draft.generationLogs.unshift(generationLog);
+      draft.lastEliminatedIds = [];
+      draft.lastReasoning = undefined;
+      draft.round += 1;
+      const upcomingPhase = nextPhase[job.phase];
+      draft.phase = upcomingPhase;
+      draft.tiles = updateVisibility(draft.tiles, upcomingPhase);
+      draft.playerText = '';
+
+      if (!isGenerationPhase(upcomingPhase)) {
+        const remainingCount = draft.tiles.filter((t) => !t.isEliminated && t.isVisible !== false).length;
+        draft.phase = getPhaseFromRemaining(remainingCount, FINAL_SLOT_COUNT);
+        draft.isInputLocked = false;
+      }
+      draft.statusMessage = `Generated ${updates.length} images from the prompt built for "${job.questionText}".`;
+    });
+  } catch (error) {
+    const statusMessage = formatGenerationError(error);
+    console.warn(statusMessage, error);
+    set((draft) => {
+      draft.statusMessage = statusMessage;
+    });
+  } finally {
+    set((draft) => {
+      draft.pendingGenerations.shift();
+      draft.generationInFlight = false;
+      draft.isLoading = false;
+      const shouldLock =
+        draft.generationAnswers >= FINAL_SLOT_COUNT && (draft.pendingGenerations.length > 0 || isGenerationPhase(draft.phase));
+      draft.isInputLocked = shouldLock;
+    });
+
+    await processGenerationQueue(get, set);
+  }
+}
+
 export const useGameStore = create<GameState & {
   submitPlayerText: (text: string) => Promise<void>;
   setPlayerText: (next: string | ((prev: string) => string)) => void;
@@ -229,33 +364,50 @@ export const useGameStore = create<GameState & {
     playerProfile: undefined,
     playerText: '',
     currentQuestion: initialQuestion,
-    questionIndex: initialQuestionIndex,
+    currentQuestionId: initialQuestionId,
+    askedQuestionIds: initialQuestionId ? [initialQuestionId] : [],
+    generationAnswers: 0,
+    questionIndex: 0,
     questionHistory: initialQuestion ? [initialQuestion] : [],
     generationLogs: [],
     round: 1,
     phase: 'gen1',
     isLoading: false,
+    isInputLocked: false,
     lastReasoning: undefined,
     statusMessage: undefined,
     lastEliminatedIds: [],
     playerHistory: [],
+    pendingGenerations: [],
+    generationInFlight: false,
+    questionTimerId: null,
 
     reset: () => {
-      set({
-        tiles: buildInitialTiles(),
-        playerProfile: undefined,
-        playerText: '',
-        currentQuestion: initialQuestion,
-        questionIndex: initialQuestionIndex,
-        questionHistory: initialQuestion ? [initialQuestion] : [],
-        generationLogs: [],
-        round: 1,
-        phase: 'gen1',
-        isLoading: false,
-        lastReasoning: undefined,
-        statusMessage: undefined,
-        lastEliminatedIds: [],
-        playerHistory: []
+      set((draft) => {
+        if (draft.questionTimerId) {
+          clearTimeout(draft.questionTimerId);
+        }
+        draft.tiles = buildInitialTiles();
+        draft.playerProfile = undefined;
+        draft.playerText = '';
+        draft.currentQuestion = initialQuestion;
+        draft.currentQuestionId = initialQuestionId;
+        draft.askedQuestionIds = initialQuestionId ? [initialQuestionId] : [];
+        draft.generationAnswers = 0;
+        draft.questionIndex = 0;
+        draft.questionHistory = initialQuestion ? [initialQuestion] : [];
+        draft.generationLogs = [];
+        draft.round = 1;
+        draft.phase = 'gen1';
+        draft.isLoading = false;
+        draft.isInputLocked = false;
+        draft.lastReasoning = undefined;
+        draft.statusMessage = undefined;
+        draft.lastEliminatedIds = [];
+        draft.playerHistory = [];
+        draft.pendingGenerations = [];
+        draft.generationInFlight = false;
+        draft.questionTimerId = null;
       });
     },
 
@@ -269,13 +421,9 @@ export const useGameStore = create<GameState & {
     submitPlayerText: async (text: string) => {
       const state = get();
       const remainingVisible = state.tiles.filter((t) => t.isVisible !== false && !t.isEliminated);
-      if (state.isLoading) return;
-      if (!isGenerationPhase(state.phase) && remainingVisible.length <= 1) return;
-
-      set((draft) => {
-        draft.isLoading = true;
-        draft.statusMessage = undefined;
-      });
+      const isGenPhase = isGenerationPhase(state.phase);
+      if (!isGenPhase && state.isLoading) return;
+      if (!isGenPhase && remainingVisible.length <= 1) return;
 
       const trimmed = text.trim();
       if (!trimmed) {
@@ -283,76 +431,41 @@ export const useGameStore = create<GameState & {
         return;
       }
 
-      if (isGenerationPhase(state.phase)) {
-        const currentGenPhase = state.phase;
-        try {
-          const { nextQuestion, nextIndex } = getNextQuestion(state.questionIndex);
-          const updates = await generateAppearanceForChains(
-            generationTargets[currentGenPhase],
-            state.currentQuestion,
-            trimmed,
-            state.tiles,
-            currentGenPhase
-          );
-
-          const generationLog = {
-            stage: currentGenPhase,
-            question: state.currentQuestion,
-            answer: trimmed,
-            prompt: updates[0]?.prompt ?? '',
-            outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
-            timestamp: Date.now()
-          } as const;
-
+      if (isGenPhase) {
+        if (state.generationAnswers >= FINAL_SLOT_COUNT) {
           set((draft) => {
-            updates.forEach((update) => {
-              const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
-              if (tileIndex >= 0) {
-                draft.tiles[tileIndex] = {
-                  ...draft.tiles[tileIndex],
-                  core: update.core,
-                  image: update.image,
-                  isGenerated: true
-                };
-              }
-            });
-
-            draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
-            draft.playerHistory.push(trimmed);
-            draft.generationLogs.unshift(generationLog);
-            draft.lastEliminatedIds = [];
-            draft.lastReasoning = undefined;
-            draft.round += 1;
-            const upcomingPhase = nextPhase[currentGenPhase];
-            draft.phase = upcomingPhase;
-            draft.tiles = updateVisibility(draft.tiles, upcomingPhase);
-            draft.playerText = '';
-            draft.currentQuestion = nextQuestion;
-            draft.questionIndex = nextIndex;
-            if (nextQuestion) {
-              draft.questionHistory.push(nextQuestion);
-            }
-            if (!isGenerationPhase(upcomingPhase)) {
-              const remainingCount = draft.tiles.filter((t) => !t.isEliminated && t.isVisible !== false).length;
-              draft.phase = getPhaseFromRemaining(remainingCount, FINAL_SLOT_COUNT);
-            }
-            draft.statusMessage = `Generated ${updates.length} images from the prompt built for "${state.currentQuestion}".`;
+            draft.isInputLocked = true;
+            draft.statusMessage = 'Waiting for generated images to finish before elimination begins.';
           });
-        } catch (error) {
-          const statusMessage = formatGenerationError(error);
-          console.warn(statusMessage, error);
-          set({ statusMessage, isLoading: false });
-        } finally {
-          set((draft) => {
-            draft.isLoading = false;
-          });
+          return;
         }
+
+        const job: PendingGenerationJob = {
+          questionId: state.currentQuestionId,
+          questionText: state.currentQuestion,
+          answer: trimmed,
+          phase: state.phase as GenerationPhase
+        };
+
+        set((draft) => {
+          draft.pendingGenerations.push(job);
+          draft.playerHistory.push(trimmed);
+          draft.generationAnswers += 1;
+          draft.lastReasoning = undefined;
+          draft.lastEliminatedIds = [];
+          draft.statusMessage = undefined;
+          draft.isInputLocked = true;
+        });
+
+        scheduleNextQuestion(get, set);
+        await processGenerationQueue(get, set);
         return;
       }
 
       try {
         set((draft) => {
           draft.playerHistory.push(trimmed);
+          draft.isLoading = true;
         });
         const result = await inferPlayerAppearance(trimmed, remainingVisible, state.phase as EliminationPhase);
         const normalizedIds = normalizeEliminations(result.eliminatedIds, state.phase as EliminationPhase, remainingVisible);
@@ -372,16 +485,11 @@ export const useGameStore = create<GameState & {
           const remainingTiles = draft.tiles.filter((t) => !t.isEliminated && t.isVisible !== false).length;
           draft.round += 1;
           draft.phase = getPhaseFromRemaining(remainingTiles, FINAL_SLOT_COUNT);
-          const { nextQuestion, nextIndex } = getNextQuestion(draft.questionIndex);
           draft.playerText = '';
-          draft.currentQuestion = nextQuestion;
-          draft.questionIndex = nextIndex;
-          if (nextQuestion) {
-            draft.questionHistory.push(nextQuestion);
-          }
           if (remainingTiles <= 1) {
             draft.statusMessage = 'A predicted look-alike has been chosen!';
           }
+          draft.isLoading = false;
         });
       } catch (error) {
         set({ statusMessage: 'Something went wrong while processing the LLM response.' });

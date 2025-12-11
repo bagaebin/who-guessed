@@ -21,6 +21,8 @@ function FinalReveal() {
 
 export default function App() {
   const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
+  const currentQuestion = useGameStore((state) => state.currentQuestion);
+  const isInputLocked = useGameStore((state) => state.isInputLocked);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
 
@@ -59,6 +61,15 @@ export default function App() {
   return (
     <div className="app">
       <div className="animated-bg"></div>
+      <div className="question-banner-wrapper">
+        <div className="question-banner camera-bubble">
+          <div className="question-banner__header">
+            <p className="question-banner__label">현재 질문</p>
+            {isInputLocked && <span className="question-banner__pill">입력 잠금</span>}
+          </div>
+          <p className="question-banner__text">{currentQuestion || '질문을 준비 중이에요.'}</p>
+        </div>
+      </div>
       <animated.div
         style={{
           ...logoSpring,

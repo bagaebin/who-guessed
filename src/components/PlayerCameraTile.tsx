@@ -27,10 +27,11 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [videoAspect, setVideoAspect] = useState(1);
   const { size } = useThree();
-  const { playerText, setPlayerText, submitPlayerText, isLoading } = useGameStore();
+  const { playerText, setPlayerText, submitPlayerText, isLoading, isInputLocked } = useGameStore();
 
   const planeAspect = useMemo(() => TILE_SIZE.width / TILE_SIZE.height, []);
   const tileStyle = useMemo(() => TILE_COLOR_GUIDE.active, []);
+  const bubbleDisabled = isInputLocked || isLoading;
 
   useEffect(() => {
     const video = document.createElement('video');
@@ -218,8 +219,8 @@ export default function PlayerCameraTile({ position }: PlayerCameraTileProps) {
               onKeyDown={handleInputKeyDown}
               placeholder="Type your bubble text"
             />
-            <button type="submit" disabled={isLoading}>
-              {isLoading ? 'Sending...' : 'Send'}
+            <button type="submit" disabled={bubbleDisabled}>
+              {bubbleDisabled ? 'Waiting...' : 'Send'}
             </button>
           </div>
         </form>

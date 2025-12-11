@@ -129,6 +129,7 @@ export default function UiPanel() {
   const {
     submitPlayerText,
     isLoading,
+    isInputLocked,
     round,
     phase,
     tiles,
@@ -142,6 +143,8 @@ export default function UiPanel() {
     currentQuestion,
     generationLogs
   } = useGameStore();
+
+  const isSubmitDisabled = isInputLocked || (!isGenerationPhase(phase) && isLoading);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -173,8 +176,8 @@ export default function UiPanel() {
           rows={4}
           placeholder="질문에 대한 생각을 알려주세요."
         />
-        <button type="submit" disabled={isLoading}>
-          {isLoading ? 'Thinking...' : 'Send to LLM'}
+        <button type="submit" disabled={isSubmitDisabled}>
+          {isSubmitDisabled ? 'Waiting...' : 'Send to LLM'}
         </button>
       </form>
 

@@ -100,17 +100,24 @@ export type GameState = {
   playerProfile?: AppearanceCore;
   playerText: string;
   currentQuestion: string;
+  currentQuestionId?: string;
+  askedQuestionIds: string[];
+  generationAnswers: number;
   questionIndex: number;
   questionHistory: string[];
   round: number;
   phase: GamePhase;
   isLoading: boolean;
+  isInputLocked: boolean;
   lastReasoning?: Record<string, string>;
   statusMessage?: string;
   lastEliminatedIds: string[];
   /** 기록된 모든 플레이어 텍스트 입력(질문-답변 로그용) */
   playerHistory: string[];
   generationLogs: GenerationLogEntry[];
+  pendingGenerations: PendingGenerationJob[];
+  generationInFlight: boolean;
+  questionTimerId: ReturnType<typeof setTimeout> | null;
 };
 
 export type GenerationLogEntry = {
@@ -120,6 +127,13 @@ export type GenerationLogEntry = {
   prompt: string;
   outputs: { id: string; image: string }[];
   timestamp: number;
+};
+
+export type PendingGenerationJob = {
+  questionId?: string;
+  questionText: string;
+  answer: string;
+  phase: GenerationPhase;
 };
 
 export type LlmInferenceResult = {
