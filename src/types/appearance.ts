@@ -130,6 +130,7 @@ export type GenerationLogEntry = {
 };
 
 export type PendingGenerationJob = {
+  chainId: string;
   questionId?: string;
   questionText: string;
   answer: string;

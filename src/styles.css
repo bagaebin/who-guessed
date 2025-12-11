@@ -214,26 +214,6 @@ button.ghost {
   gap: 0.35rem;
 }
 
-.question-banner__header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.question-banner__label {
-  margin: 0;
-  font-weight: 800;
-  font-size: 0.9rem;
-}
-
-.question-banner__pill {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(0, 0, 0, 0.3);
-}
-
 .question-banner__text {
   margin: 0;
   font-size: 1.05rem;

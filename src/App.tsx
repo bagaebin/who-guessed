@@ -63,10 +63,6 @@ export default function App() {
       <div className="animated-bg"></div>
       <div className="question-banner-wrapper">
         <div className="question-banner camera-bubble">
-          <div className="question-banner__header">
-            <p className="question-banner__label">현재 질문</p>
-            {isInputLocked && <span className="question-banner__pill">입력 잠금</span>}
-          </div>
           <p className="question-banner__text">{currentQuestion || '질문을 준비 중이에요.'}</p>
         </div>
       </div>
