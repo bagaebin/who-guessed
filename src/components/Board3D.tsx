@@ -105,6 +105,7 @@ function SceneContents({
   const baseTargetRef = useRef(new THREE.Vector3(...CAMERA_TARGET));
   const focusOverrideTargetRef = useRef<THREE.Vector3 | null>(null);
   const focusOverrideOffsetRef = useRef<THREE.Vector3 | null>(null);
+  const focusOverrideActiveRef = useRef(false);
   const tempFocusPosition = useMemo(() => new THREE.Vector3(), []);
   const tiltOffsetRef = useRef(0);
   const overviewCompleteRef = useRef(false);
@@ -138,6 +139,7 @@ function SceneContents({
     baseTargetRef.current.copy(cameraTileTarget);
     focusOverrideTargetRef.current = cameraTileTarget.clone();
     focusOverrideOffsetRef.current = currentOffset.clone();
+    focusOverrideActiveRef.current = true;
     camera.position.copy(cameraTileTarget.clone().add(currentOffset));
     controls.update();
   }, [camera, cameraTileTarget]);
@@ -196,6 +198,7 @@ function SceneContents({
         focusCompleteRef={focusCompleteRef}
         focusOverrideTargetRef={focusOverrideTargetRef}
         focusOverrideOffsetRef={focusOverrideOffsetRef}
+        focusOverrideActiveRef={focusOverrideActiveRef}
         tempFocusPosition={tempFocusPosition}
         overviewPosition={overviewPositionVector}
         overviewTarget={overviewTargetVector}
@@ -220,6 +223,7 @@ function UpdateCamera({
   focusCompleteRef,
   focusOverrideTargetRef,
   focusOverrideOffsetRef,
+  focusOverrideActiveRef,
   tempFocusPosition,
   overviewPosition,
   overviewTarget,
@@ -239,6 +243,7 @@ function UpdateCamera({
   focusCompleteRef: MutableRefObject<boolean>;
   focusOverrideTargetRef: MutableRefObject<THREE.Vector3 | null>;
   focusOverrideOffsetRef: MutableRefObject<THREE.Vector3 | null>;
+  focusOverrideActiveRef: MutableRefObject<boolean>;
   tempFocusPosition: THREE.Vector3;
   overviewPosition: THREE.Vector3;
   overviewTarget: THREE.Vector3;
@@ -290,12 +295,25 @@ function UpdateCamera({
     const nextTilt = THREE.MathUtils.damp(tiltOffsetRef.current, desiredTilt, 6, delta);
     tiltOffsetRef.current = nextTilt;
 
-    if (introState === 'done' && focusOverrideTargetRef.current && focusOverrideOffsetRef.current) {
+    const hasFocusOverride =
+      introState === 'done' &&
+      focusOverrideActiveRef.current &&
+      focusOverrideTargetRef.current &&
+      focusOverrideOffsetRef.current;
+
+    if (hasFocusOverride) {
       tempFocusPosition
         .copy(focusOverrideTargetRef.current)
         .add(focusOverrideOffsetRef.current);
       camera.position.lerp(tempFocusPosition, 1 - Math.exp(-delta * 3));
       baseTargetRef.current.lerp(focusOverrideTargetRef.current, 1 - Math.exp(-delta * 4));
+
+      const positionSettled = camera.position.distanceTo(tempFocusPosition) < FOCUS_LERP_THRESHOLD;
+      const targetSettled = baseTargetRef.current.distanceTo(focusOverrideTargetRef.current) < FOCUS_LERP_THRESHOLD;
+
+      if (positionSettled && targetSettled) {
+        focusOverrideActiveRef.current = false;
+      }
     }
 
     tempTarget.set(
