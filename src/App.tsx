@@ -23,6 +23,10 @@ export default function App() {
   const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
   const currentQuestion = useGameStore((state) => state.currentQuestion);
   const isInputLocked = useGameStore((state) => state.isInputLocked);
+  const activeGenerationId = useGameStore((state) => state.activeGenerationId);
+  const reset = useGameStore((state) => state.reset);
+  const remainingTiles = tiles.filter((tile) => !tile.isEliminated);
+  const outroTile = remainingTiles.length === 1 ? remainingTiles[0] : undefined;
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
 
@@ -161,8 +165,19 @@ export default function App() {
         />
       </animated.div>
       <div className="left">
-        <Board3D tiles={tiles} />
+        <Board3D tiles={tiles} focusTileId={outroTile?.id} generatingTileId={activeGenerationId ?? undefined} />
       </div>
+      {outroTile && (
+        <div className="outro-overlay">
+          <div className="outro-overlay__panel">
+            <h2>마지막 남은 인물</h2>
+            <p>타일 {outroTile.id} 로 카메라가 이동합니다.</p>
+          </div>
+          <button className="outro-overlay__replay" onClick={reset}>
+            Replay
+          </button>
+        </div>
+      )}
       <div className={`admin-panel ${isAdminOpen ? 'admin-panel--open' : ''}`}>
         <div className="admin-panel__header">
           <p>Press Option to toggle admin mode</p>
