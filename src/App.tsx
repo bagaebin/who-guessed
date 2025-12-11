@@ -25,19 +25,10 @@ function OutroOverlay() {
 
   if (remaining.length !== 1) return null;
 
-  const tile = remaining[0];
-
   return (
-    <div className="outro-overlay">
-      <div className="outro-card">
-        <p className="outro-label">Final look-alike locked in</p>
-        <p className="outro-title">Tile {tile.id}</p>
-        <p className="outro-subtitle">카메라가 마지막 타일로 줌인합니다.</p>
-      </div>
-      <button className="outro-replay" onClick={reset}>
-        Replay
-      </button>
-    </div>
+    <button className="outro-replay" onClick={reset}>
+      Replay
+    </button>
   );
 }
 
