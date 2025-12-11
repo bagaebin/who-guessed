@@ -48,7 +48,9 @@ export async function analyzeGeneratedImages(
   });
 
   if (!response.ok) {
-    throw new Error(`Image analysis endpoint returned ${response.status}`);
+    throw new Error(
+      `Image analysis endpoint returned ${response.status} for ${endpoint}. Ensure the backend route exists and is reachable.`
+    );
   }
 
   const json = await response.json();
