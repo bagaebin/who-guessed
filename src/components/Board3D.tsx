@@ -256,10 +256,33 @@ function UpdateCamera({
     const controls = controlsRef.current;
     if (!controls || !(camera instanceof THREE.PerspectiveCamera)) return;
 
-    if (introState === 'done' && !focusOverrideActiveRef.current) {
-      baseTargetRef.current.copy(controls.target);
-      tiltOffsetRef.current = 0;
+    if (introState === 'done') {
+      const hasFocusOverride =
+        focusOverrideActiveRef.current &&
+        focusOverrideTargetRef.current &&
+        focusOverrideOffsetRef.current;
+
+      if (!hasFocusOverride) {
+        return;
+      }
+
+      tempFocusPosition
+        .copy(focusOverrideTargetRef.current)
+        .add(focusOverrideOffsetRef.current);
+
+      camera.position.lerp(tempFocusPosition, 1 - Math.exp(-delta * 3));
+      controls.target.lerp(focusOverrideTargetRef.current, 1 - Math.exp(-delta * 4));
       controls.update();
+
+      const positionSettled = camera.position.distanceTo(tempFocusPosition) < FOCUS_LERP_THRESHOLD;
+      const targetSettled =
+        controls.target.distanceTo(focusOverrideTargetRef.current) < FOCUS_LERP_THRESHOLD;
+
+      if (positionSettled && targetSettled) {
+        focusOverrideActiveRef.current = false;
+        baseTargetRef.current.copy(controls.target);
+      }
+
       return;
     }
 
@@ -301,27 +324,6 @@ function UpdateCamera({
     const desiredTilt = THREE.MathUtils.clamp(heightAboveTarget * AUTO_TILT_SLOPE, 0, AUTO_TILT_MAX);
     const nextTilt = THREE.MathUtils.damp(tiltOffsetRef.current, desiredTilt, 6, delta);
     tiltOffsetRef.current = nextTilt;
-
-    const hasFocusOverride =
-      introState === 'done' &&
-      focusOverrideActiveRef.current &&
-      focusOverrideTargetRef.current &&
-      focusOverrideOffsetRef.current;
-
-    if (hasFocusOverride) {
-      tempFocusPosition
-        .copy(focusOverrideTargetRef.current)
-        .add(focusOverrideOffsetRef.current);
-      camera.position.lerp(tempFocusPosition, 1 - Math.exp(-delta * 3));
-      baseTargetRef.current.lerp(focusOverrideTargetRef.current, 1 - Math.exp(-delta * 4));
-
-      const positionSettled = camera.position.distanceTo(tempFocusPosition) < FOCUS_LERP_THRESHOLD;
-      const targetSettled = baseTargetRef.current.distanceTo(focusOverrideTargetRef.current) < FOCUS_LERP_THRESHOLD;
-
-      if (positionSettled && targetSettled) {
-        focusOverrideActiveRef.current = false;
-      }
-    }
 
     tempTarget.set(
       baseTargetRef.current.x,
