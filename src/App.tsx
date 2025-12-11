@@ -19,6 +19,28 @@ function FinalReveal() {
   );
 }
 
+function OutroOverlay() {
+  const { tiles, reset } = useGameStore();
+  const remaining = tiles.filter((t) => !t.isEliminated && t.isVisible !== false);
+
+  if (remaining.length !== 1) return null;
+
+  const tile = remaining[0];
+
+  return (
+    <div className="outro-overlay">
+      <div className="outro-card">
+        <p className="outro-label">Final look-alike locked in</p>
+        <p className="outro-title">Tile {tile.id}</p>
+        <p className="outro-subtitle">카메라가 마지막 타일로 줌인합니다.</p>
+      </div>
+      <button className="outro-replay" onClick={reset}>
+        Replay
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   const tiles = useGameStore((state) => state.tiles.filter((tile) => tile.isVisible !== false));
   const currentQuestion = useGameStore((state) => state.currentQuestion);
@@ -122,6 +144,7 @@ export default function App() {
       <div className="left">
         <Board3D tiles={tiles} />
       </div>
+      <OutroOverlay />
       <div className={`admin-panel ${isAdminOpen ? 'admin-panel--open' : ''}`}>
         <div className="admin-panel__header">
           <p>Press Option to toggle admin mode</p>
