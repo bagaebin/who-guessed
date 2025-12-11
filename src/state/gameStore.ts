@@ -13,10 +13,12 @@ import {
   EliminationPhase,
   GamePhase,
   GameState,
+  GENERATION_PHASES,
   GenerationPhase
 } from '../types/appearance';
 
-const FINAL_SLOT_COUNT = 12;
+const FINAL_SLOT_COUNT = 10;
+const generationPhases = GENERATION_PHASES;
 
 function createSvgPlaceholder(label: string) {
   const svg = `
@@ -46,22 +48,19 @@ function getNextQuestion(index: number): { nextQuestion: string; nextIndex: numb
   return { nextQuestion: questionPool[nextIndex].text, nextIndex };
 }
 
-const generationTargets: Record<GenerationPhase, string[]> = {
-  gen1: ['chain-1'],
-  gen2: ['chain-2', 'chain-3', 'chain-4'],
-  gen3: chainIds.slice(4, 12),
-  gen4: chainIds
-};
+const generationTargets = generationPhases.reduce<Record<GenerationPhase, string[]>>((acc, phase, index) => {
+  acc[phase] = [chainIds[index]];
+  return acc;
+}, {} as Record<GenerationPhase, string[]>);
 
-const visibilityByPhase: Record<GamePhase, Set<string>> = {
-  gen1: new Set(['chain-1']),
-  gen2: new Set(['chain-1', 'chain-2', 'chain-3', 'chain-4']),
-  gen3: new Set(chainIds),
-  gen4: new Set(chainIds),
+const visibilityByPhase = generationPhases.reduce<Record<GamePhase, Set<string>>>((acc, phase, index) => {
+  acc[phase] = new Set(chainIds.slice(0, index + 1));
+  return acc;
+}, {
   early: new Set(chainIds),
   mid: new Set(chainIds),
   late: new Set(chainIds)
-};
+} as Record<GamePhase, Set<string>>);
 
 function baseSlotFromSeed(index: number): CharacterTile {
   const seed = seedPool[index % seedPool.length];
@@ -214,12 +213,11 @@ async function generateAppearanceForChains(
   });
 }
 
-const nextPhase: Record<GenerationPhase, GamePhase> = {
-  gen1: 'gen2',
-  gen2: 'gen3',
-  gen3: 'gen4',
-  gen4: 'early'
-};
+const nextPhase = generationPhases.reduce<Record<GenerationPhase, GamePhase>>((acc, phase, index) => {
+  const isLast = index === generationPhases.length - 1;
+  acc[phase] = isLast ? 'early' : generationPhases[index + 1];
+  return acc;
+}, {} as Record<GenerationPhase, GamePhase>);
 
 export const useGameStore = create<GameState & {
   submitPlayerText: (text: string) => Promise<void>;

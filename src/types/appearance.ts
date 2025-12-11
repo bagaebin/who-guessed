@@ -78,7 +78,20 @@ export type CharacterTile = {
   isGenerated?: boolean;
 };
 
-export type GenerationPhase = 'gen1' | 'gen2' | 'gen3' | 'gen4';
+export const GENERATION_PHASES = [
+  'gen1',
+  'gen2',
+  'gen3',
+  'gen4',
+  'gen5',
+  'gen6',
+  'gen7',
+  'gen8',
+  'gen9',
+  'gen10'
+] as const;
+
+export type GenerationPhase = (typeof GENERATION_PHASES)[number];
 export type EliminationPhase = 'early' | 'mid' | 'late';
 export type GamePhase = GenerationPhase | EliminationPhase;
 

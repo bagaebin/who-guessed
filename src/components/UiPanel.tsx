@@ -6,6 +6,7 @@ import {
   CharacterTile,
   EliminationPhase,
   GamePhase,
+  GENERATION_PHASES,
   GenerationLogEntry
 } from '../types/appearance';
 
@@ -51,12 +52,13 @@ function RemainingList({ tiles }: { tiles: CharacterTile[] }) {
 
 function PhaseHint({ phase }: { phase: GamePhase }) {
   if (isGenerationPhase(phase)) {
-    const targetByPhase: Record<typeof phase, string> = {
-      gen1: '1 image from the first question–answer prompt',
-      gen2: '3 images for the newly spawned slots',
-      gen3: '8 images filling the board up to 8 slots with the third prompt',
-      gen4: '12 images regenerated from the 4th prompt (used for elimination)'
-    } as const;
+    const targetByPhase: Record<typeof phase, string> = GENERATION_PHASES.reduce(
+      (acc, current, index) => {
+        acc[current] = `Stage ${index + 1} of 10: generate 1 image and unlock slot ${index + 1}.`;
+        return acc;
+      },
+      {} as Record<typeof phase, string>
+    );
 
     return (
       <div className="phase-hint">
