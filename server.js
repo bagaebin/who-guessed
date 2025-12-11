@@ -397,42 +397,137 @@ app.post("/api/generate-images", generateImagesHandler);
 app.post("/generate-images", generateImagesHandler);
 
 // 🔍 이미지 분석 엔드포인트 (VITE_IMAGE_ANALYSIS_ENDPOINT)
+// 🔍 이미지 분석 엔드포인트 (VITE_IMAGE_ANALYSIS_ENDPOINT)
 app.post("/api/imageAnalysisClient", async (req, res) => {
   const { images } = req.body || {};
 
-  // images는 { id, image } 형태의 배열이어야 함
-  if (!Array.isArray(images)) {
-    return res.status(400).json({ error: "images payload must be an array" });
+  // images는 { id, image } 형태의 배열이어야 함 (image: data URL 또는 공개 URL)
+  if (!Array.isArray(images) || images.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "images payload must be a non-empty array" });
+  }
+
+  // 공통 system 프롬프트: 이미지 1장을 보고 AppearanceCore를 JSON으로만 추론
+  const systemPrompt = `
+You are an assistant for a guessing game.
+You analyze a single portrait image and infer an appearance profile.
+
+You MUST return a JSON object with EXACTLY this shape and ONLY these fields:
+
+{
+  "core": {
+    "gender": "male|female|non_binary|transgender",
+    "race": "east_asian|southeast_asian|south_asian|black|white|latinx|middle_eastern|indigenous|pacific_islander|mixed",
+    "ageGroup": "child|teen|young_adult|adult|older_adult",
+    "skinTone": "very_light|light|medium|tan|deep",
+    "bodyShape": "very_slim|slim|average|slightly_chubby|chubby",
+    "skinCondition": "clear|some_acne|noticeable_acne|freckles_or_spots|sensitive_or_red",
+    "hairLength": "bald_or_shaved|short|medium|long",
+    "hairStyle": "straight|wavy|curly|coily|buzz",
+    "hairColor": "black|dark_brown|light_brown|blonde|red|gray|dyed_color",
+    "glasses": "none|round|square|other",
+    "facialHair": "none|stubble|mustache|beard",
+    "faceShape": "round|oval|square|long",
+    "expressionBaseline": "neutral|subtle_smile|big_smile|serious|tired|shy|confident",
+    "styleVibe": "casual|sporty|formal|artsy|geeky|punk_or_goth|street|minimal|colorful",
+    "makeupLevel": "none|light|noticeable|bold",
+    "accessoriesPresence": "none|ear|head|neck"
+  }
+}
+
+IMPORTANT RULES:
+- For EVERY field in "core", you MUST choose EXACTLY ONE value from the allowed list.
+- NEVER use values like "any", "unknown", "none_of_the_above", "other_than_these".
+- Do not add extra fields.
+- Do not wrap the JSON in backticks or markdown.
+`.trim();
+
+  // 이미지 1장 분석 함수
+  async function analyzeSingleImage(item) {
+    try {
+      const response = await client.responses.create({
+        model: "gpt-4.1-mini",
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: "Infer the appearance core JSON for this portrait image.",
+              },
+              {
+                type: "input_image",
+                image_url: item.image,
+              },
+            ],
+          },
+        ],
+        instructions: systemPrompt,
+      });
+
+      const text =
+        response.output?.[0]?.content?.[0]?.text?.value ??
+        response.output?.[0]?.content?.[0]?.text ??
+        "{}";
+
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        console.warn(
+          "⚠ imageAnalysisClient JSON.parse 실패:",
+          e,
+          "\ncontent:",
+          text
+        );
+        parsed = null;
+      }
+
+      const rawCore = parsed?.core || {};
+      // server.js 상단에 이미 정의된 buildNormalizedProfile 재사용
+      const normalizedCore = buildNormalizedProfile(rawCore, {});
+
+      return {
+        id: item.id,
+        core: normalizedCore,
+      };
+    } catch (error) {
+      console.error("🔥 analyzeSingleImage OpenAI error for id", item.id, error);
+      // 에러 시 기본값 fallback (이전 stub과 동일)
+      return {
+        id: item.id,
+        core: {
+          gender: "non_binary",
+          race: "mixed",
+          ageGroup: "adult",
+          skinTone: "medium",
+          bodyShape: "average",
+          skinCondition: "clear",
+          hairLength: "medium",
+          hairStyle: "straight",
+          hairColor: "black",
+          glasses: "none",
+          facialHair: "none",
+          faceShape: "oval",
+          expressionBaseline: "neutral",
+          styleVibe: "casual",
+          makeupLevel: "none",
+          accessoriesPresence: "none",
+        },
+      };
+    }
   }
 
   try {
-    // 프론트에서 기대하는 AppearanceCore 형식을 맞춘 기본 분석 결과 생성
-    const results = images.map((item) => ({
-      id: item.id,
-      core: {
-        gender: "non_binary",
-        race: "mixed",
-        ageGroup: "adult",
-        skinTone: "medium",
-        bodyShape: "average",
-        skinCondition: "clear",
-        hairLength: "medium",
-        hairStyle: "straight",
-        hairColor: "black",
-        glasses: "none",
-        facialHair: "none",
-        faceShape: "oval",
-        expressionBaseline: "neutral",
-        styleVibe: "casual",
-        makeupLevel: "none",
-        accessoriesPresence: "none",
-      },
-    }));
-
+    // 모든 이미지를 병렬로 분석
+    const results = await Promise.all(images.map((item) => analyzeSingleImage(item)));
     return res.json({ results });
   } catch (error) {
     console.error("🔥 /api/imageAnalysisClient error:", error);
-    return res.status(500).json({ error: "image analysis failed", detail: error?.message });
+    return res
+      .status(500)
+      .json({ error: "image analysis failed", detail: error?.message });
   }
 });
 
