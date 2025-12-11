@@ -1,4 +1,4 @@
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import { CharacterTile } from '../types/appearance';
@@ -27,6 +27,8 @@ const MAX_INTRO_TILE_COUNT = 24;
 const OVERVIEW_TARGET_Y_OFFSET = -2;
 const OVERVIEW_POSITION_Z_PADDING = 12;
 const OVERVIEW_POSITION_Y_PADDING = 4;
+const OUTRO_CAMERA_DISTANCE = 3.6;
+const OUTRO_CAMERA_HEIGHT = 1.5;
 
 function TileGrid({
   tiles,
@@ -89,13 +91,21 @@ function SceneContents({
   onIntroTileComplete: () => void;
 }) {
   const camera = useThree((state) => state.camera);
+  const targetRef = useMemo(() => new THREE.Vector3(...cameraTarget), []);
+  const positionRef = useMemo(() => new THREE.Vector3(...cameraPosition), []);
 
   useEffect(() => {
+    targetRef.set(...cameraTarget);
+    positionRef.set(...cameraPosition);
+  }, [cameraPosition, cameraTarget, positionRef, targetRef]);
+
+  useFrame(() => {
     if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    camera.position.set(...cameraPosition);
-    camera.lookAt(...cameraTarget);
+
+    camera.position.lerp(positionRef, 0.08);
+    camera.lookAt(targetRef);
     camera.updateProjectionMatrix();
-  }, [camera, cameraPosition, cameraTarget]);
+  });
 
   return (
     <>
@@ -130,6 +140,15 @@ export default function Board3D({ tiles }: Board3DProps) {
   const cameraTileY = -STAIR_STEP / 2 + CAMERA_TILE_Y_ADJUST;
   const cameraTilePosition: [number, number, number] = [0, cameraTileY, cameraTileZ];
 
+  const getTilePosition = useCallback((tileIndex: number): [number, number, number] => {
+    const row = Math.floor(tileIndex / TILE_COLUMNS);
+    const col = tileIndex % TILE_COLUMNS;
+    const x = (col - (TILE_COLUMNS - 1) / 2) * TILE_SPACING;
+    const z = ((rows - 1) / 2 - row) * TILE_SPACING;
+    const y = row * STAIR_STEP;
+    return [x, y, z];
+  }, [rows]);
+
   const introTileIds = useMemo(
     () => tiles.slice(0, MAX_INTRO_TILE_COUNT).map((tile) => tile.id),
     [tiles]
@@ -149,6 +168,20 @@ export default function Board3D({ tiles }: Board3DProps) {
     ],
     [gridHalfDepth, overviewTargetY]
   );
+
+  const outroCamera = useMemo(() => {
+    const remaining = tiles.filter((tile) => !tile.isEliminated);
+    if (remaining.length !== 1) return null;
+
+    const tileIndex = tiles.findIndex((tile) => tile.id === remaining[0].id);
+    if (tileIndex < 0) return null;
+
+    const [x, y, z] = getTilePosition(tileIndex);
+    return {
+      target: [x, y, z] as [number, number, number],
+      position: [x, y + OUTRO_CAMERA_HEIGHT, z + OUTRO_CAMERA_DISTANCE] as [number, number, number]
+    };
+  }, [getTilePosition, tiles]);
 
   useEffect(() => {
     if (introTileIds.length) {
@@ -170,14 +203,17 @@ export default function Board3D({ tiles }: Board3DProps) {
     setIntroDropCount((count) => Math.min(count + 1, introTileIds.length));
   }, [introTileIds.length]);
 
+  const activeCameraTarget = outroCamera?.target ?? cameraTarget;
+  const activeCameraPosition = outroCamera?.position ?? cameraPosition;
+
   return (
     <div className="board3d">
-      <Canvas camera={{ position: cameraPosition, fov: 42 }} shadows>
+      <Canvas camera={{ position: activeCameraPosition, fov: 42 }} shadows>
         <SceneContents
           tiles={tiles}
           cameraTilePosition={cameraTilePosition}
-          cameraPosition={cameraPosition}
-          cameraTarget={cameraTarget}
+          cameraPosition={activeCameraPosition}
+          cameraTarget={activeCameraTarget}
           introState={introStage}
           introTileIds={introTileIds}
           onIntroTileComplete={handleTileDropComplete}
