@@ -21,6 +21,7 @@ import {
 const FINAL_SLOT_COUNT = 10;
 const generationPhases = GENERATION_PHASES;
 const QUESTION_ROTATION_DELAY_MS = 3000;
+const MAX_PARALLEL_GENERATIONS = 3;
 
 function createSvgPlaceholder(label: string) {
   const textElement = label
@@ -280,8 +281,8 @@ async function processGenerationQueue(
 ) {
   const state = get();
   if (state.generationInFlight) return;
-  const job = state.pendingGenerations[0];
-  if (!job) {
+  const jobs = state.pendingGenerations.slice(0, MAX_PARALLEL_GENERATIONS);
+  if (!jobs.length) {
     set((draft) => {
       draft.isLoading = false;
       if (!draft.generationInFlight && draft.generationAnswers < FINAL_SLOT_COUNT) {
@@ -298,49 +299,87 @@ async function processGenerationQueue(
   });
 
   try {
-    const updates = await generateAppearanceForChains([job.chainId], job.questionText, job.answer, state.tiles, job.phase);
+    const settled = await Promise.allSettled(
+      jobs.map(async (job) => {
+        const updates = await generateAppearanceForChains(
+          [job.chainId],
+          job.questionText,
+          job.answer,
+          state.tiles,
+          job.phase
+        );
 
-    const generationLog = {
-      stage: job.phase,
-      question: job.questionText,
-      answer: job.answer,
-      prompt: updates[0]?.prompt ?? '',
-      outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
-      timestamp: Date.now()
-    } as const;
+        const generationLog = {
+          stage: job.phase,
+          question: job.questionText,
+          answer: job.answer,
+          prompt: updates[0]?.prompt ?? '',
+          outputs: updates.map(({ chainId, image }) => ({ id: chainId, image })),
+          timestamp: Date.now()
+        } as const;
+
+        return { job, updates, generationLog };
+      })
+    );
+
+    const successes = settled.filter((result): result is PromiseFulfilledResult<{
+      job: PendingGenerationJob;
+      updates: { chainId: string; core: AppearanceCore; image: string; prompt: string }[];
+      generationLog: {
+        stage: GenerationPhase;
+        question: string;
+        answer: string;
+        prompt: string;
+        outputs: { id: string; image: string }[];
+        timestamp: number;
+      };
+    }> => result.status === 'fulfilled');
+    const failures = settled.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+
+    const totalImages = successes.reduce((acc, current) => acc + current.value.updates.length, 0);
+    const questionSummaries = successes
+      .map((result) => `"${result.value.job.questionText}"`)
+      .join(', ');
+    const failureMessage = failures[0] ? formatGenerationError(failures[0].reason) : null;
 
     set((draft) => {
-      updates.forEach((update) => {
-        const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
-        if (tileIndex >= 0) {
-          draft.tiles[tileIndex] = {
-            ...draft.tiles[tileIndex],
-            core: update.core,
-            image: update.image,
-            isGenerated: true
-          };
-        }
+      successes.forEach((result) => {
+        const { job, updates, generationLog } = result.value;
+
+        updates.forEach((update) => {
+          const tileIndex = draft.tiles.findIndex((tile) => tile.id === update.chainId);
+          if (tileIndex >= 0) {
+            draft.tiles[tileIndex] = {
+              ...draft.tiles[tileIndex],
+              core: update.core,
+              image: update.image,
+              isGenerated: true
+            };
+          }
+        });
+
+        draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
+        draft.playerHistory.push(job.answer);
+        draft.generationLogs.unshift(generationLog);
       });
 
-      draft.playerProfile = updates[0]?.core ?? draft.playerProfile;
-      draft.playerHistory.push(job.answer);
-      draft.generationLogs.unshift(generationLog);
       draft.lastEliminatedIds = [];
       draft.lastReasoning = undefined;
-      draft.round += 1;
+      draft.round += successes.length;
       draft.playerText = '';
       startEliminationIfReady(draft);
-      draft.statusMessage = `Generated ${updates.length} images from the prompt built for "${job.questionText}".`;
-    });
-  } catch (error) {
-    const statusMessage = formatGenerationError(error);
-    console.warn(statusMessage, error);
-    set((draft) => {
-      draft.statusMessage = statusMessage;
+
+      if (totalImages > 0) {
+        draft.statusMessage = `Generated ${totalImages} images from prompts for ${questionSummaries}.`;
+      }
+
+      if (failureMessage) {
+        draft.statusMessage = [draft.statusMessage, failureMessage].filter(Boolean).join(' ');
+      }
     });
   } finally {
     set((draft) => {
-      draft.pendingGenerations.shift();
+      draft.pendingGenerations.splice(0, jobs.length);
       draft.generationInFlight = false;
       draft.isLoading = false;
       const pendingCount = draft.pendingGenerations.length;
