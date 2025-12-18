@@ -1,64 +1,40 @@
 # "Who Guessed?" 게임 경험 세부 사양
 
-본 문서는 플레이어 소개 텍스트 → LLM 외부 엔드포인트 → 3D 보드 반영까지의 흐름을 정의한다. Tier 1 AppearanceCore 스키마를 기반으로 하며, UI/상태/LLM 연동을 모듈화하여 확장 가능한 구조를 제공한다.
+본 문서는 플레이어 입력 → 이미지 생성/분석 → 3D 보드 반영 → 제거 루프까지 **현재 구현된 코드**를 기준으로 설명한다.
 
 ## 1. 화면 & UX
-- **3D 보드**: React Three Fiber 기반 정면 시점. 타일은 8×3 격자로 배치하며 뒤집기(tilt + fade) 애니메이션을 지원하고, 각 행은 살짝씩 높아지는 계단형으로 쌓인다. 카메라는 보드 전체를 모두 담는 단일 고정 구도만 사용하며, 드래그/줌/포커스 같은 사용자 조작 기능은 제거했다. 계단 높이는 기본 0.32이며 `VITE_TILE_ROW_STEP` 환경 변수를 통해 더 넓게(예: `0.5`) 조정할 수 있다.
-- **플레이어 카메라 타일**: 보드 전면 하단에 3D 타일로 배치하며 보드 타일 대비 약 2배 크기. 캐릭터 타일보다 전면 간격을 넉넉히 띄워 시야를 가리지 않도록 했으며, 웹캠(모바일은 전면 카메라) 실시간 영상을 출력하고 실패 시 동일 위치에 오류 메시지를 표시한다. 전면 여유 거리는 고정이며, `VITE_CAMERA_TILE_Z_ADJUST` 환경 변수를 통해 타일의 높낮이를 위/아래로 보정할 수 있다(예: `-0.3`으로 더 낮추기).
-- **우측 패널**: 채팅 입력, 라운드·단계 표시, 남은 타일 수, LLM 추정 프로필, 마지막 제거 목록, 추론 근거 표시.
-- **질문 배너**: 윈도우 상단에 현재 질문을 별도 UI로 노출하며, 플레이어 입력 필드(camera-bubble)와 동일한 말풍선 스타일을 적용한다(관리자 모드에 한정되지 않음).
-- **최종 연출**: 타일 1장만 남으면 "예측된 닮은꼴" 카드와 이미지를 표시.
+- **3D 보드**: 5열 계단형 격자. 카메라는 고정 시점이며 사용자 조작이 없고, ContactShadows로 입체감만 추가한다.【F:src/components/Board3D.tsx†L15-L105】
+- **플레이어 카메라 타일**: 전면 하단에 큰 타일로 배치되고 웹캠을 시도한다. 실패 시 오류 메시지/색상 패널을 노출한다.【F:src/components/PlayerCameraTile.tsx†L14-L156】
+- **질문 배너**: 창 상단에 camera-bubble 스타일 배너가 고정되어 현재 질문을 노출한다.【F:src/App.tsx†L17-L78】
+- **우측(admin) 패널**: Alt 키로 열고 닫는다. 라운드/페이즈, 질문/답변 폼, LLM 프로필/근거, 이번 턴 제거 목록, 생성 로그를 확인한다.【F:src/App.tsx†L20-L78】【F:src/components/UiPanel.tsx†L79-L155】
+- **최종 연출**: 남은 타일이 1장일 때 "Predicted Look-alike" 카드와 선택된 이미지를 표시한다.【F:src/App.tsx†L1-L25】
 
-## 2. 핵심 데이터 모델 (Tier 1 강제)
-- `AppearanceCore`: gender, race, ageGroup, skinTone, bodyShape, skinCondition, hairLength, hairStyle, hairColor, glasses, facialHair, faceShape, expressionBaseline, styleVibe, makeupLevel, accessoriesPresence. 모든 필드는 필수이며 `unknown` 없음.
-- `CharacterTile`: { id, core: AppearanceCore, image, isEliminated }.
-- `GameState`: { tiles, playerProfile?, round, phase, isLoading, lastReasoning?, statusMessage?, lastEliminatedIds }.
+## 2. 데이터 모델(Tier 1 강제)
+- `AppearanceCore`: 성별·인종·연령·피부·체형·헤어·표정·스타일·액세서리 등 15개 필드 모두 필수이며 `unknown` 없음.【F:src/types/appearance.ts†L1-L66】
+- `CharacterTile`: { id, core, image, isEliminated, isVisible?, isGenerated? }.
+- `GameState`: 질문·답변 히스토리, generation 큐, round/phase, LLM 결과, 마지막 제거 ID, generation 로그를 포함한다.【F:src/types/appearance.ts†L92-L136】
 
 ## 3. 게임 흐름
-### 이미지 생성 전반부
-1. 게임 시작 시 플레이어 카메라 타일을 제외한 중앙에는 **빈 슬롯 1개만** 배치되어 있으며, 10칸 전체를 한 번에 노출하지 않는다.
-2. 플레이어가 텍스트를 입력하면 `submitPlayerText`가 호출되고, **현재 질문 텍스트와 답변 텍스트를 결합**해 "a person who …" 식의 영어 형용구로 요약한 뒤, 화이트 배경·증명사진 스타일·사실적 묘사를 강조한 기본 이미지 프롬프트에 삽입한다.
-3. 이미지 생성 **1~10기**를 순차 진행하며 각 기수는 1장을 한 번의 프롬프트로 생성한다. 생성된 각 이미지를 AI가 분석해 AppearanceCore를 추출/갱신하고, 빈 타일에 채워 넣는다.
-4. 매 기수 종료 시 캐릭터 타일을 1개씩 추가 생성해 슬롯을 확장한다. 최종적으로 10기 완료 시점까지 10개의 슬롯만 생성되며, 이후에는 새로운 슬롯을 만들지 않는다.
-5. 각 기수는 **해당 턴의 질문·답변으로 만든 프롬프트**만 사용해 1장을 생성하며, 생성 직후 이미지를 분석해 도출된 AppearanceCore를 타일에 기록·고정한다(분기 추론 체인 미사용).
-6. 이미지 생성 10기가 모두 끝나면 기존 제거 단계(early/mid/late)로 전환한다.
-
-### 질문 제공 및 입력 흐름
-1. 질문은 데이터베이스에 저장된 목록에서 무작위로 1개씩 제공되며, 한 번 노출된 질문은 다시 등장하지 않는다.
-2. 플레이어가 답변을 제출하면 이미지 생성·분석 완료를 기다리지 않고 **3초 지연 후** 다음 질문이 윈도우 상단 배너와 입력 필드에 표시되어 연속 입력이 가능하다.
-3. 10개의 질문에 모두 답변하면 이미지 생성 및 분석이 끝날 때까지 11번째 질문(이미지 제거 단계 시작용) 입력창과 전송 버튼을 잠금 상태로 전환해 추가 텍스트 입력을 막는다.
+### 이미지 생성 1~10기
+1. **시작 상태**: 10개 chain 슬롯이 예약되어 있으나 gen1에서는 첫 슬롯만 보인다. 나머지는 generation 단계별로 순차 해제된다.【F:src/state/gameStore.ts†L87-L135】
+2. **프롬프트 구성**: 현재 질문과 답변을 영어 구문으로 합쳐 화이트 배경 증명사진 스타일 프롬프트를 만든다.【F:src/state/gameStore.ts†L141-L188】
+3. **생성/분석**: `VITE_IMAGE_ENDPOINT`로 1장을 생성하고, `VITE_IMAGE_ANALYSIS_ENDPOINT`에 묶음으로 보내 AppearanceCore를 추출한다. 엔드포인트가 없으면 에러로 중단되고 모킹되지 않는다.【F:src/api/imageClient.ts†L31-L58】【F:src/api/imageAnalysisClient.ts†L20-L53】
+4. **슬롯 반영**: 분석 결과(또는 파생 코어)를 슬롯에 기록하고 이미지 텍스처를 바꾼 뒤, generation 로그에 프롬프트/질문/답변/결과 이미지를 남긴다.【F:src/state/gameStore.ts†L305-L373】
+5. **질문 회전**: 제출 직후 입력을 잠그고 3초 타이머 후 다음 무작위 질문으로 교체한다. generation 답변이 10개 누적되면 생성/분석 완료까지 입력이 잠긴다.【F:src/state/gameStore.ts†L38-L110】【F:src/state/gameStore.ts†L424-L498】
 
 ### 기존 제거 루프
-7. 남은 타일과 단계(early/mid/late)를 함께 LLM 엔드포인트에 POST한다.
-8. 응답(`profile`, `eliminatedIds`, `reasoning`)을 Zod로 검증 후, 제거 ID를 단계별 허용 범위에 맞춰 보정(최소/최대 제거 수, 마지막 1장 보호).
-9. 응답마다 `playerProfile`을 최신 추론 결과로 갱신하고, 제거 ID에 따라 타일 `isEliminated` 토글 + flip 애니메이션.
-10. 남은 타일 수 기반으로 phase 재계산, round 증가. 1장 이하이면 종료 메시지 노출.
-11. 실패 시 mock 응답 + 상태 메시지로 사용자에게 알림.
+6. 10기 완료 후 남은 타일 수로 early/mid/late를 재계산하고, `inferPlayerAppearance`를 호출한다. LLM 엔드포인트 미설정 시 seed 기반 mock 프로필 + 랜덤 제거가 적용된다.【F:src/state/gameStore.ts†L261-L305】【F:src/api/appearanceClient.ts†L44-L86】
+7. 응답을 Zod로 검증 후 제거 ID를 단계별 min/max에 맞춰 보정하고, 뒤집기 애니메이션으로 표시한다.【F:src/api/appearanceClient.ts†L1-L43】【F:src/utils/elimination.ts†L14-L46】
+8. round 증가 및 phase 업데이트 후, 남은 타일이 1장일 때 최종 예측 카드가 노출된다.【F:src/state/gameStore.ts†L498-L536】【F:src/App.tsx†L1-L25】
 
-## 4. 단계(phase) 규칙
-- **이미지 생성 1~10기**: 각 기수마다 질문·답변 프롬프트로 이미지를 1장 생성·분석하고, 턴 종료 시 캐릭터 타일을 1개씩 추가해 최대 10개의 슬롯만 사용한다.
-- **early**: 3–4장 제거
-- **mid**: 2–3장 제거
-- **late**: 1–2장 제거
-- 제거 계산 시 항상 최소 1장 이상 보드에 남도록 제한한다.
+## 4. 페이즈 규칙 & 제거 범위
+- **생성 단계(gen1~gen10)**: 각 단계마다 슬롯 1개를 unlock + 1장 생성/분석. 가시 슬롯은 단계 수만큼으로 제한된다.【F:src/state/gameStore.ts†L235-L260】
+- **early**: 남은 타일 > 60% (최소 6장)일 때, 3~4장 제거.【F:src/utils/phase.ts†L8-L19】
+- **mid**: 남은 타일 > 30%일 때, 2~3장 제거.【F:src/utils/phase.ts†L8-L19】
+- **late**: 그 이하, 1~2장 제거. 항상 1장 이상 보존.【F:src/utils/phase.ts†L8-L25】【F:src/utils/elimination.ts†L14-L46】
 
-## 5. LLM 연동 계약
-- 엔드포인트: `POST ${VITE_LLM_ENDPOINT}`
-- 바디: `{ playerText: string, remainingTiles: CharacterTile[], phase: 'early'|'mid'|'late' }`
-- 응답: `{ profile: AppearanceCore, eliminatedIds: string[], reasoning?: Record<string,string> }` (Tier 1 값만 허용)
-- 실패/검증 오류 시: mock 프로필 + 단계별 랜덤 제거 ID로 폴백.
-
-## 6. 모듈 책임 분리
-- `types/appearance.ts`: 모든 타입 선언.
-- `utils/phase.ts`: 남은 타일 수로 phase 산출, 단계별 제거 범위 반환.
-- `utils/elimination.ts`: LLM 제거 ID 정제(중복/존재 여부 필터) 및 단계별 최소/최대 맞춤.
-- `api/appearanceClient.ts`: LLM 호출, 응답 검증, mock 분기, 정제 헬퍼 제공.
-- `state/gameStore.ts`: submit/reset 로직, phase 업데이트, 타일 상태 반영.
-- `components/Board3D.tsx`, `TileCard.tsx`: 3D 씬과 타일 메시, flip 애니메이션.
-- `components/PlayerCameraTile.tsx`: 3D 플레이어 카메라 타일(보드 전면 하단), 전면 카메라/웹캠 실시간 피드 + 오류 안내 표시.
-- `components/UiPanel.tsx`: 입력 흐름, 요약/프로필/근거/제거 정보 표시.
-
-## 7. 확장 포인트
-- 이미지 자산 교체: `CharacterTile.image`에 프롬프트 기반 생성물 연결 가능.
-- 애니메이션 강화: TileCard 스프링 파라미터 및 머티리얼 커스텀.
-- 평가/리플레이 로깅: `reasoning` 및 제거 히스토리를 추가 스토어 필드로 기록 가능.
+## 5. 예외/리스크 알림
+- 이미지 엔드포인트 누락 시 생성 단계가 즉시 실패하며 자동 폴백이 없다. `.env.example` 및 운영 매뉴얼이 필요하다.【F:src/api/imageClient.ts†L31-L58】
+- 생성 실패 슬롯은 placeholder로 남지만 재시도 로직이 없어 관리자가 수동 개입해야 한다.【F:src/state/gameStore.ts†L305-L373】
+- 질문 풀이 모두 소진될 수 있으므로, 빈 질문 상태 안내 또는 풀 확장 지침을 추가해야 한다.【F:src/state/gameStore.ts†L38-L110】
+- LLM 엔드포인트 미설정 시 제거 결과가 랜덤이므로 테스트/운영 환경 구분 표시가 필요하다.【F:src/api/appearanceClient.ts†L44-L86】
